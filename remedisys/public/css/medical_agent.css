@@ -1,0 +1,215 @@
+/* ===================================================================
+   Remedisys — Medical AI Assistant Styles
+   =================================================================== */
+
+/* Dialog sizing */
+.ai-assistant-dialog {
+	max-width: 1100px !important;
+	width: 95vw !important;
+}
+
+/* Status bar */
+.ai-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-radius: 8px;
+	font-weight: 500;
+	font-size: 13px;
+	margin: 4px 0;
+	background: var(--subtle-fg, #f4f5f6);
+}
+
+.ai-status--green {
+	background: #e6f9f0;
+	color: #0e6b3e;
+}
+
+.ai-status--blue {
+	background: #e8f0fe;
+	color: #1a56db;
+}
+
+.ai-status--orange {
+	background: #fef3e2;
+	color: #b25e09;
+}
+
+.ai-status--red {
+	background: #fde8e8;
+	color: #c81e1e;
+}
+
+/* Pulse animation for live recording */
+.ai-pulse {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #e53e3e;
+	animation: ai-pulse-anim 1.2s ease-in-out infinite;
+}
+
+@keyframes ai-pulse-anim {
+	0%, 100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.4;
+		transform: scale(1.4);
+	}
+}
+
+/* Buttons */
+.btn-ai-start,
+.btn-ai-stop,
+.btn-ai-reset {
+	margin-top: 22px;
+	min-width: 110px;
+}
+
+/* Panels (transcript / recommendation) */
+.ai-panel {
+	border: 1px solid var(--border-color, #d9dee7);
+	border-radius: 10px;
+	overflow: hidden;
+	margin-bottom: 10px;
+	background: var(--card-bg, #ffffff);
+}
+
+.ai-panel__title {
+	background: var(--subtle-fg, #f7f8fa);
+	padding: 10px 14px;
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	border-bottom: 1px solid var(--border-color, #d9dee7);
+	color: var(--heading-color, #333);
+}
+
+.ai-panel__body {
+	padding: 14px;
+	font-size: 13px;
+	line-height: 1.7;
+	white-space: pre-wrap;
+	max-height: 350px;
+	overflow-y: auto;
+	color: var(--text-color, #444);
+}
+
+/* Recommendation grid */
+.ai-rec-grid {
+	display: flex;
+	gap: 24px;
+	margin-bottom: 14px;
+	flex-wrap: wrap;
+}
+
+.ai-rec-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ai-badge {
+	display: inline-block;
+	padding: 3px 12px;
+	border-radius: 20px;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+/* Recommendation sections */
+.ai-rec-section {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid var(--border-color, #eaeaea);
+}
+
+.ai-rec-section strong {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	color: var(--heading-color, #333);
+}
+
+.ai-rec-section ul {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.ai-rec-section ul li {
+	margin-bottom: 4px;
+}
+
+.ai-rec-section p {
+	margin: 0;
+}
+
+/* Red flags highlight */
+.ai-rec-section--flags {
+	background: #fff5f5;
+	border-radius: 8px;
+	padding: 12px;
+	border: 1px solid #feb2b2;
+	margin-top: 14px;
+}
+
+.ai-rec-section--flags strong {
+	color: #c53030;
+}
+
+/* Disclaimer */
+.ai-disclaimer {
+	margin-top: 14px;
+	padding: 12px;
+	border-radius: 8px;
+	background: #fffbea;
+	border: 1px solid #f6e05e;
+	font-size: 12px;
+	color: #744210;
+	font-weight: 500;
+}
+
+/* Field label inside dialog */
+.ai-field {
+	margin-top: 4px;
+}
+
+.ai-field .control-label {
+	font-size: 11px;
+	color: var(--text-muted, #888);
+	margin-bottom: 4px;
+}
+
+.ai-field .control-value {
+	font-size: 13px;
+	font-weight: 600;
+	font-family: monospace;
+	color: var(--text-color, #333);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+	.ai-status--green { background: #064e3b; color: #6ee7b7; }
+	.ai-status--blue  { background: #1e3a5f; color: #93c5fd; }
+	.ai-status--orange { background: #78350f; color: #fbbf24; }
+	.ai-status--red   { background: #7f1d1d; color: #fca5a5; }
+
+	.ai-rec-section--flags {
+		background: #2d1515;
+		border-color: #991b1b;
+	}
+
+	.ai-disclaimer {
+		background: #2d2106;
+		border-color: #92400e;
+		color: #fbbf24;
+	}
+}
