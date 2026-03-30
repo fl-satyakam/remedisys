@@ -1,215 +1,289 @@
 /* ===================================================================
-   Remedisys — Medical AI Assistant Styles
+   Remedisys — AI Assistant Side Panel Styles
    =================================================================== */
 
-/* Dialog sizing */
-.ai-assistant-dialog {
-	max-width: 1100px !important;
-	width: 95vw !important;
+/* ---- Overlay ---- */
+.ai-panel-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.25);
+	z-index: 1049;
+	opacity: 0;
+	transition: opacity 0.3s ease;
+	pointer-events: none;
+}
+.ai-overlay-show {
+	opacity: 1;
+	pointer-events: auto;
 }
 
-/* Status bar */
-.ai-status {
+/* ---- Side panel ---- */
+.ai-side-panel {
+	position: fixed;
+	top: 0;
+	right: -420px;
+	width: 400px;
+	height: 100vh;
+	background: var(--card-bg, #fff);
+	border-left: 1px solid var(--border-color, #d9dee7);
+	box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+	z-index: 1050;
+	display: flex;
+	flex-direction: column;
+	transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ai-sp-open {
+	right: 0;
+}
+
+/* ---- Header ---- */
+.ai-sp-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 16px;
+	border-bottom: 1px solid var(--border-color, #e2e8f0);
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: #fff;
+	flex-shrink: 0;
+}
+.ai-sp-header-left {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 10px 14px;
-	border-radius: 8px;
+}
+.ai-sp-header h4 {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	color: #fff;
+}
+.ai-sp-icon {
+	font-size: 20px;
+}
+.ai-sp-close {
+	background: rgba(255,255,255,0.2) !important;
+	border: none !important;
+	color: #fff !important;
+	font-size: 16px;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.ai-sp-close:hover {
+	background: rgba(255,255,255,0.35) !important;
+}
+
+/* ---- Controls bar ---- */
+.ai-sp-controls {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--border-color, #e2e8f0);
+	background: var(--subtle-fg, #f8f9fb);
+	flex-shrink: 0;
+}
+.ai-sp-visit-id {
+	display: flex;
+	flex-direction: column;
+	font-size: 11px;
+}
+.ai-sp-visit-id span {
+	font-weight: 600;
+	font-family: monospace;
+	font-size: 11px;
+}
+.ai-sp-buttons {
+	display: flex;
+	gap: 4px;
+}
+.ai-sp-lang .ai-lang-select {
+	width: 60px;
+	height: 26px;
+	font-size: 11px;
+	padding: 2px 4px;
+}
+
+/* ---- Status ---- */
+.ai-sp-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	font-size: 12px;
 	font-weight: 500;
-	font-size: 13px;
-	margin: 4px 0;
 	background: var(--subtle-fg, #f4f5f6);
+	border-bottom: 1px solid var(--border-color, #e2e8f0);
+	flex-shrink: 0;
 }
 
-.ai-status--green {
-	background: #e6f9f0;
-	color: #0e6b3e;
-}
-
-.ai-status--blue {
-	background: #e8f0fe;
-	color: #1a56db;
-}
-
-.ai-status--orange {
-	background: #fef3e2;
-	color: #b25e09;
-}
-
-.ai-status--red {
-	background: #fde8e8;
-	color: #c81e1e;
-}
-
-/* Pulse animation for live recording */
+/* Pulse animation */
 .ai-pulse {
 	display: inline-block;
-	width: 10px;
-	height: 10px;
+	width: 8px;
+	height: 8px;
 	border-radius: 50%;
 	background: #e53e3e;
 	animation: ai-pulse-anim 1.2s ease-in-out infinite;
 }
-
 @keyframes ai-pulse-anim {
-	0%, 100% {
-		opacity: 1;
-		transform: scale(1);
-	}
-	50% {
-		opacity: 0.4;
-		transform: scale(1.4);
-	}
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.4; transform: scale(1.5); }
 }
 
-/* Buttons */
-.btn-ai-start,
-.btn-ai-stop,
-.btn-ai-reset {
-	margin-top: 22px;
-	min-width: 110px;
-}
-
-/* Panels (transcript / recommendation) */
-.ai-panel {
-	border: 1px solid var(--border-color, #d9dee7);
-	border-radius: 10px;
-	overflow: hidden;
-	margin-bottom: 10px;
-	background: var(--card-bg, #ffffff);
-}
-
-.ai-panel__title {
-	background: var(--subtle-fg, #f7f8fa);
-	padding: 10px 14px;
-	margin: 0;
-	font-size: 13px;
-	font-weight: 600;
-	border-bottom: 1px solid var(--border-color, #d9dee7);
-	color: var(--heading-color, #333);
-}
-
-.ai-panel__body {
-	padding: 14px;
-	font-size: 13px;
-	line-height: 1.7;
-	white-space: pre-wrap;
-	max-height: 350px;
+/* ---- Scrollable body ---- */
+.ai-sp-body {
+	flex: 1;
 	overflow-y: auto;
-	color: var(--text-color, #444);
+	padding: 12px 16px;
 }
 
-/* Recommendation grid */
-.ai-rec-grid {
-	display: flex;
-	gap: 24px;
-	margin-bottom: 14px;
-	flex-wrap: wrap;
+/* ---- Sections ---- */
+.ai-sp-section {
+	margin-bottom: 8px;
+	border: 1px solid var(--border-color, #e2e8f0);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--card-bg, #fff);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.ai-sp-section-title {
+	padding: 6px 12px;
+	font-size: 10px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	background: var(--subtle-fg, #f1f3f5);
+	border-bottom: 1px solid var(--border-color, #e2e8f0);
+	color: var(--text-muted, #555);
+}
+.ai-sp-section-body {
+	padding: 8px 12px;
+	font-size: 13px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	max-height: 250px;
+	overflow-y: auto;
 }
 
-.ai-rec-item {
+/* ---- Recommendation blocks ---- */
+.ai-rec-header {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
 	gap: 8px;
 }
-
+.ai-rec-complaint {
+	font-weight: 600;
+	font-size: 13px;
+}
 .ai-badge {
 	display: inline-block;
-	padding: 3px 12px;
+	padding: 2px 10px;
 	border-radius: 20px;
 	color: #fff;
-	font-size: 11px;
+	font-size: 10px;
 	font-weight: 700;
 	letter-spacing: 0.5px;
+	flex-shrink: 0;
 }
-
-/* Recommendation sections */
-.ai-rec-section {
-	margin-top: 12px;
-	padding-top: 10px;
-	border-top: 1px solid var(--border-color, #eaeaea);
-}
-
-.ai-rec-section strong {
-	display: block;
-	margin-bottom: 6px;
+.ai-rec-summary {
 	font-size: 12px;
-	text-transform: uppercase;
-	letter-spacing: 0.4px;
-	color: var(--heading-color, #333);
+	color: var(--text-muted, #666);
+	margin: 0 0 8px 0;
+	font-style: italic;
 }
-
-.ai-rec-section ul {
-	margin: 0;
-	padding-left: 18px;
+.ai-rec-block {
+	margin-top: 6px;
 }
-
-.ai-rec-section ul li {
+.ai-rec-block + .ai-rec-block {
+	padding-top: 6px;
+	border-top: 1px solid var(--border-color, #f1f3f5);
+}
+.ai-rec-block strong {
+	display: block;
+	font-size: 11px;
 	margin-bottom: 4px;
 }
-
-.ai-rec-section p {
+.ai-rec-block ul {
 	margin: 0;
+	padding-left: 16px;
+	font-size: 12px;
+}
+.ai-rec-block ul li {
+	margin-bottom: 1px;
+}
+.ai-rec-block p {
+	margin: 0;
+	font-size: 12px;
 }
 
-/* Red flags highlight */
-.ai-rec-section--flags {
+/* Red flags */
+.ai-rec-flags {
 	background: #fff5f5;
 	border-radius: 8px;
-	padding: 12px;
+	padding: 8px 10px !important;
 	border: 1px solid #feb2b2;
-	margin-top: 14px;
+	margin-top: 10px;
 }
-
-.ai-rec-section--flags strong {
+.ai-rec-flags strong {
 	color: #c53030;
 }
 
+/* Patient Spanish summary */
+.ai-rec-es-summary {
+	background: #f0fff4;
+	border-radius: 8px;
+	padding: 8px 10px !important;
+	border: 1px solid #9ae6b4;
+	margin-top: 10px;
+}
+
 /* Disclaimer */
-.ai-disclaimer {
-	margin-top: 14px;
-	padding: 12px;
+.ai-rec-disclaimer {
+	margin-top: 10px;
+	padding: 8px 10px;
 	border-radius: 8px;
 	background: #fffbea;
 	border: 1px solid #f6e05e;
-	font-size: 12px;
+	font-size: 11px;
 	color: #744210;
 	font-weight: 500;
 }
 
-/* Field label inside dialog */
-.ai-field {
-	margin-top: 4px;
-}
-
-.ai-field .control-label {
-	font-size: 11px;
-	color: var(--text-muted, #888);
-	margin-bottom: 4px;
-}
-
-.ai-field .control-value {
-	font-size: 13px;
-	font-weight: 600;
-	font-family: monospace;
-	color: var(--text-color, #333);
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-	.ai-status--green { background: #064e3b; color: #6ee7b7; }
-	.ai-status--blue  { background: #1e3a5f; color: #93c5fd; }
-	.ai-status--orange { background: #78350f; color: #fbbf24; }
-	.ai-status--red   { background: #7f1d1d; color: #fca5a5; }
-
-	.ai-rec-section--flags {
-		background: #2d1515;
-		border-color: #991b1b;
+/* ---- Responsive ---- */
+@media (max-width: 500px) {
+	.ai-side-panel {
+		width: 100vw;
+		right: -100vw;
 	}
+}
 
-	.ai-disclaimer {
-		background: #2d2106;
-		border-color: #92400e;
-		color: #fbbf24;
-	}
+/* ---- Dark mode ---- */
+[data-theme="dark"] .ai-sp-header,
+.dark .ai-sp-header {
+	background: linear-gradient(135deg, #4c51bf 0%, #553c9a 100%);
+}
+[data-theme="dark"] .ai-rec-flags,
+.dark .ai-rec-flags {
+	background: #2d1515;
+	border-color: #991b1b;
+}
+[data-theme="dark"] .ai-rec-es-summary,
+.dark .ai-rec-es-summary {
+	background: #1a3a2a;
+	border-color: #276749;
+}
+[data-theme="dark"] .ai-rec-disclaimer,
+.dark .ai-rec-disclaimer {
+	background: #2d2106;
+	border-color: #92400e;
+	color: #fbbf24;
 }

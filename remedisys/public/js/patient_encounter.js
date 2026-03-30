@@ -1,156 +1,205 @@
 /**
  * Remedisys — Medical AI Assistant
- * Injects an "AI Assistant" button into the Patient Encounter form.
- * Clicking it opens a dialog that records mic audio in 10-second chunks,
- * sends each chunk to the backend for transcription, Spanish translation,
- * and clinical recommendation.
+ * Adds an "AI Assistant" button to Patient Encounter that opens
+ * a right-side panel with live transcription, Spanish translation,
+ * and clinical recommendations.
  */
 
 frappe.ui.form.on("Patient Encounter", {
 	refresh(frm) {
-		// Add a primary "AI Assistant" button at the top of the form
 		frm.add_custom_button(
 			__("🤖 AI Assistant"),
-			() => open_ai_assistant_dialog(frm),
+			() => toggleAIPanel(frm),
 		);
-
-		// Make it stand out
 		frm.change_custom_button_type(__("🤖 AI Assistant"), null, "primary");
 	},
 });
 
 /* -----------------------------------------------------------------------
- * Dialog
+ * Right-side panel
  * ----------------------------------------------------------------------- */
 
-function open_ai_assistant_dialog(frm) {
-	const visitId = frm.doc.name || frappe.utils.get_random(10);
+let aiPanelInstance = null;
 
-	const d = new frappe.ui.Dialog({
-		title: __("🤖 Medical AI Assistant"),
-		size: "extra-large",
-		minimizable: true,
-		fields: build_dialog_fields(visitId),
-		on_page_show: () => {
-			d.$wrapper.find(".modal-dialog").addClass("ai-assistant-dialog");
-		},
-	});
+function toggleAIPanel(frm) {
+	if (aiPanelInstance) {
+		aiPanelInstance.destroy();
+		aiPanelInstance = null;
+		return;
+	}
+	aiPanelInstance = new AIAssistantPanel(frm);
+}
 
-	// ---- State ----
-	let mediaRecorder = null;
-	let mediaStream = null;
-	let chunkInterval = null;
-	let seqNum = 0;
-	let isRecording = false;
-	let processingCount = 0;
+class AIAssistantPanel {
+	constructor(frm) {
+		this.frm = frm;
+		this.visitId = frm.doc.name || frappe.utils.get_random(10);
+		this.mediaRecorder = null;
+		this.mediaStream = null;
+		this.chunkInterval = null;
+		this.seqNum = 0;
+		this.isRecording = false;
+		this.processingCount = 0;
 
-	// ---- DOM refs ----
-	const $status = () => d.fields_dict.status_html.$wrapper;
-	const $transcriptEn = () => d.fields_dict.transcript_en_html.$wrapper;
-	const $transcriptEs = () => d.fields_dict.transcript_es_html.$wrapper;
-	const $recommendation = () => d.fields_dict.recommendation_html.$wrapper;
+		this.render();
+	}
 
-	// ---- Helpers ----
-	function setStatus(text, type = "blue") {
-		$status().html(
-			`<div class="ai-status ai-status--${type}">
-				<span class="indicator-pill ${type}"></span> ${text}
-			</div>`
+	render() {
+		// Create overlay + panel
+		this.$overlay = $('<div class="ai-panel-overlay"></div>').appendTo("body");
+		this.$panel = $(`
+			<div class="ai-side-panel">
+				<div class="ai-sp-header">
+					<div class="ai-sp-header-left">
+						<span class="ai-sp-icon">🤖</span>
+						<h4>${__("AI Assistant")}</h4>
+					</div>
+					<button class="btn btn-sm ai-sp-close" title="${__("Close")}">✕</button>
+				</div>
+
+				<div class="ai-sp-controls">
+					<div class="ai-sp-visit-id">
+						<small class="text-muted">${__("Visit")}</small>
+						<span>${this.visitId}</span>
+					</div>
+					<div class="ai-sp-buttons">
+						<button class="btn btn-primary btn-xs ai-btn-start">🎙️ ${__("Start")}</button>
+						<button class="btn btn-danger btn-xs ai-btn-stop" disabled>⏹️ ${__("Stop")}</button>
+						<button class="btn btn-default btn-xs ai-btn-reset">🔄</button>
+					</div>
+					<div class="ai-sp-lang">
+						<select class="form-control input-xs ai-lang-select">
+							<option value="">${__("Auto")}</option>
+							<option value="en">EN</option>
+							<option value="es">ES</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="ai-sp-status">
+					<span class="indicator-pill blue"></span>
+					${__("Ready — press Start")}
+				</div>
+
+				<div class="ai-sp-body">
+					<div class="ai-sp-section ai-sp-transcript-en">
+						<div class="ai-sp-section-title">📝 ${__("Patient Problem")}</div>
+						<div class="ai-sp-section-body text-muted">${__("Listening for patient…")}</div>
+					</div>
+
+					<div class="ai-sp-section ai-sp-transcript-es">
+						<div class="ai-sp-section-title">🇪🇸 ${__("Spanish Translation")}</div>
+						<div class="ai-sp-section-body text-muted">${__("Waiting…")}</div>
+					</div>
+
+					<div class="ai-sp-section ai-sp-recommendation">
+						<div class="ai-sp-section-title">💡 ${__("Suggestions for Doctor")}</div>
+						<div class="ai-sp-section-body text-muted">${__("No suggestions yet.")}</div>
+					</div>
+				</div>
+			</div>
+		`).appendTo("body");
+
+		// Animate in
+		requestAnimationFrame(() => {
+			this.$panel.addClass("ai-sp-open");
+			this.$overlay.addClass("ai-overlay-show");
+		});
+
+		// Events
+		this.$panel.find(".ai-sp-close").on("click", () => this.destroy());
+		this.$overlay.on("click", () => this.destroy());
+		this.$panel.find(".ai-btn-start").on("click", () => this.startRecording());
+		this.$panel.find(".ai-btn-stop").on("click", () => this.stopRecording());
+		this.$panel.find(".ai-btn-reset").on("click", () => this.resetSession());
+	}
+
+	destroy() {
+		this.stopRecording();
+		this.$panel.removeClass("ai-sp-open");
+		this.$overlay.removeClass("ai-overlay-show");
+		setTimeout(() => {
+			this.$panel.remove();
+			this.$overlay.remove();
+		}, 300);
+		aiPanelInstance = null;
+	}
+
+	setStatus(text, type = "blue") {
+		this.$panel.find(".ai-sp-status").html(
+			`<span class="indicator-pill ${type}"></span> ${text}`
 		);
 	}
 
-	function renderTranscript(selector, label, text) {
-		selector().html(
-			`<div class="ai-panel">
-				<h5 class="ai-panel__title">${label}</h5>
-				<div class="ai-panel__body">${frappe.utils.escape_html(text) || '<span class="text-muted">Waiting for audio…</span>'}</div>
-			</div>`
+	updateTranscriptEn(text) {
+		this.$panel.find(".ai-sp-transcript-en .ai-sp-section-body").html(
+			frappe.utils.escape_html(text) || `<span class="text-muted">${__("Listening for patient…")}</span>`
 		);
 	}
 
-	function renderRecommendation(rec) {
+	updateTranscriptEs(text) {
+		this.$panel.find(".ai-sp-transcript-es .ai-sp-section-body").html(
+			frappe.utils.escape_html(text) || `<span class="text-muted">${__("Waiting…")}</span>`
+		);
+	}
+
+	updateRecommendation(rec) {
+		const $body = this.$panel.find(".ai-sp-recommendation .ai-sp-section-body");
+
 		if (!rec || !rec.chief_complaint) {
-			$recommendation().html(
-				`<div class="ai-panel">
-					<h5 class="ai-panel__title">${__("Recommendation Draft")}</h5>
-					<div class="ai-panel__body text-muted">${__("No recommendation yet.")}</div>
-				</div>`
-			);
+			$body.html(`<span class="text-muted">${__("No suggestions yet.")}</span>`);
 			return;
 		}
 
-		const urgencyColors = {
-			low: "green",
-			moderate: "orange",
-			high: "red",
-			emergent: "darkred",
-		};
-		const urgColor = urgencyColors[rec.urgency] || "gray";
+		const urgColors = { low: "#38a169", moderate: "#dd6b20", high: "#e53e3e", emergent: "#9b2c2c" };
+		const urgColor = urgColors[rec.urgency] || "#718096";
 
 		const listHtml = (items) =>
-			(items || [])
-				.map((i) => `<li>${frappe.utils.escape_html(i)}</li>`)
-				.join("") || "<li class='text-muted'>None</li>";
+			(items || []).map(i => `<li>${frappe.utils.escape_html(i)}</li>`).join("")
+			|| `<li class="text-muted">${__("None")}</li>`;
 
-		$recommendation().html(`
-			<div class="ai-panel">
-				<h5 class="ai-panel__title">${__("Recommendation Draft")}</h5>
-				<div class="ai-panel__body">
-					<div class="ai-rec-grid">
-						<div class="ai-rec-item">
-							<strong>${__("Chief Complaint")}:</strong>
-							<span>${frappe.utils.escape_html(rec.chief_complaint)}</span>
-						</div>
-						<div class="ai-rec-item">
-							<strong>${__("Urgency")}:</strong>
-							<span class="ai-badge" style="background:${urgColor};">
-								${(rec.urgency || "").toUpperCase()}
-							</span>
-						</div>
-					</div>
+		$body.html(`
+			<div class="ai-rec-header">
+				<span class="ai-rec-complaint">${frappe.utils.escape_html(rec.chief_complaint)}</span>
+				<span class="ai-badge" style="background:${urgColor};">${(rec.urgency || "").toUpperCase()}</span>
+			</div>
 
-					<div class="ai-rec-section">
-						<strong>${__("Summary")}</strong>
-						<p>${frappe.utils.escape_html(rec.summary)}</p>
-					</div>
+			<p class="ai-rec-summary">${frappe.utils.escape_html(rec.summary)}</p>
 
-					<div class="ai-rec-section">
-						<strong>${__("Possible Assessment")}</strong>
-						<ul>${listHtml(rec.possible_assessment)}</ul>
-					</div>
+			<div class="ai-rec-block">
+				<strong>🔍 ${__("Assessment")}</strong>
+				<ul>${listHtml(rec.possible_assessment)}</ul>
+			</div>
 
-					<div class="ai-rec-section">
-						<strong>${__("Follow-up Questions")}</strong>
-						<ul>${listHtml(rec.recommended_follow_up_questions)}</ul>
-					</div>
+			<div class="ai-rec-block">
+				<strong>❓ ${__("Ask the Patient")}</strong>
+				<ul>${listHtml(rec.recommended_follow_up_questions)}</ul>
+			</div>
 
-					<div class="ai-rec-section">
-						<strong>${__("Suggested Next Steps")}</strong>
-						<ul>${listHtml(rec.suggested_next_steps)}</ul>
-					</div>
+			<div class="ai-rec-block">
+				<strong>➡️ ${__("Next Steps")}</strong>
+				<ul>${listHtml(rec.suggested_next_steps)}</ul>
+			</div>
 
-					<div class="ai-rec-section ai-rec-section--flags">
-						<strong>🚩 ${__("Red Flags")}</strong>
-						<ul>${listHtml(rec.red_flags)}</ul>
-					</div>
+			${(rec.red_flags && rec.red_flags.length) ? `
+			<div class="ai-rec-block ai-rec-flags">
+				<strong>🚩 ${__("Red Flags")}</strong>
+				<ul>${listHtml(rec.red_flags)}</ul>
+			</div>` : ""}
 
-					<div class="ai-rec-section">
-						<strong>🇪🇸 ${__("Patient-Facing Spanish Summary")}</strong>
-						<p>${frappe.utils.escape_html(rec.patient_facing_spanish_summary)}</p>
-					</div>
+			<div class="ai-rec-block ai-rec-es-summary">
+				<strong>🇪🇸 ${__("For Patient (Spanish)")}</strong>
+				<p>${frappe.utils.escape_html(rec.patient_facing_spanish_summary)}</p>
+			</div>
 
-					<div class="ai-disclaimer">
-						⚠️ ${frappe.utils.escape_html(rec.safety_disclaimer)}
-					</div>
-				</div>
+			<div class="ai-rec-disclaimer">
+				⚠️ ${frappe.utils.escape_html(rec.safety_disclaimer)}
 			</div>
 		`);
 	}
 
 	// ---- Recording ----
-	// We stop/restart the recorder every 10 seconds so each chunk
-	// is a self-contained webm file with proper headers.
-	function _createRecorder(stream) {
+	_createRecorder(stream) {
 		const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
 			? "audio/webm;codecs=opus"
 			: "audio/webm";
@@ -165,95 +214,81 @@ function open_ai_assistant_dialog(frm) {
 		rec.onstop = () => {
 			if (chunks.length > 0) {
 				const blob = new Blob(chunks, { type: mimeType });
-				uploadChunk(blob);
+				this.uploadChunk(blob);
 			}
 		};
 
 		return rec;
 	}
 
-	async function startRecording() {
+	async startRecording() {
 		try {
-			setStatus(__("Requesting microphone…"), "blue");
+			this.setStatus(__("Requesting microphone…"), "blue");
+			this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			this.seqNum = 0;
+			this.isRecording = true;
 
-			mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			this.mediaRecorder = this._createRecorder(this.mediaStream);
+			this.mediaRecorder.start();
 
-			seqNum = 0;
-			isRecording = true;
-
-			// Start the first recorder
-			mediaRecorder = _createRecorder(mediaStream);
-			mediaRecorder.start();
-
-			setStatus(
-				`<span class="ai-pulse"></span> ${__("Listening… (chunks every 10 s)")}`,
+			this.setStatus(
+				`<span class="ai-pulse"></span> ${__("Listening…")}`,
 				"green"
 			);
-			d.fields_dict.btn_start_html.$wrapper.find("button").prop("disabled", true);
-			d.fields_dict.btn_stop_html.$wrapper.find("button").prop("disabled", false);
+			this.$panel.find(".ai-btn-start").prop("disabled", true);
+			this.$panel.find(".ai-btn-stop").prop("disabled", false);
 
-			// Every 10 seconds, stop current recorder and start a new one
-			chunkInterval = setInterval(() => {
-				if (!isRecording || !mediaStream) return;
-
-				// Stop current — triggers onstop which uploads the chunk
-				if (mediaRecorder && mediaRecorder.state === "recording") {
-					mediaRecorder.stop();
+			this.chunkInterval = setInterval(() => {
+				if (!this.isRecording || !this.mediaStream) return;
+				if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+					this.mediaRecorder.stop();
 				}
-
-				// Start a fresh recorder for the next 10 seconds
-				mediaRecorder = _createRecorder(mediaStream);
-				mediaRecorder.start();
+				this.mediaRecorder = this._createRecorder(this.mediaStream);
+				this.mediaRecorder.start();
 			}, 10000);
 		} catch (err) {
 			console.error(err);
-			setStatus(`${__("Mic error")}: ${err.message || err}`, "red");
+			this.setStatus(`${__("Mic error")}: ${err.message}`, "red");
 		}
 	}
 
-	function stopRecording() {
+	stopRecording() {
 		try {
-			isRecording = false;
-
-			if (chunkInterval) {
-				clearInterval(chunkInterval);
-				chunkInterval = null;
+			this.isRecording = false;
+			if (this.chunkInterval) {
+				clearInterval(this.chunkInterval);
+				this.chunkInterval = null;
 			}
-
-			if (mediaRecorder && mediaRecorder.state !== "inactive") {
-				mediaRecorder.stop(); // will trigger final upload
+			if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
+				this.mediaRecorder.stop();
 			}
-
-			if (mediaStream) {
-				mediaStream.getTracks().forEach((t) => t.stop());
-				mediaStream = null;
+			if (this.mediaStream) {
+				this.mediaStream.getTracks().forEach(t => t.stop());
+				this.mediaStream = null;
 			}
-
-			if (processingCount === 0) {
-				setStatus(__("Stopped"), "orange");
+			if (this.processingCount === 0) {
+				this.setStatus(__("Stopped"), "orange");
 			}
-			d.fields_dict.btn_start_html.$wrapper.find("button").prop("disabled", false);
-			d.fields_dict.btn_stop_html.$wrapper.find("button").prop("disabled", true);
+			this.$panel.find(".ai-btn-start").prop("disabled", false);
+			this.$panel.find(".ai-btn-stop").prop("disabled", true);
 		} catch (err) {
 			console.error(err);
 		}
 	}
 
-	async function uploadChunk(blob) {
-		processingCount++;
-		seqNum++;
-		const currentSeq = seqNum;
+	async uploadChunk(blob) {
+		this.processingCount++;
+		this.seqNum++;
+		const currentSeq = this.seqNum;
 
-		setStatus(
-			`${__("Processing chunk")} #${currentSeq}…`,
-			"blue"
-		);
+		this.setStatus(`${__("Processing chunk")} #${currentSeq}…`, "blue");
 
 		try {
+			const langHint = this.$panel.find(".ai-lang-select").val() || "";
 			const form = new FormData();
-			form.append("visit_id", visitId);
+			form.append("visit_id", this.visitId);
 			form.append("sequence_number", String(currentSeq));
-			form.append("language_hint", d.get_value("language_hint") || "");
+			form.append("language_hint", langHint);
 			form.append("audio_chunk", blob, `chunk-${currentSeq}.webm`);
 
 			const resp = await fetch(
@@ -262,9 +297,7 @@ function open_ai_assistant_dialog(frm) {
 					method: "POST",
 					body: form,
 					credentials: "include",
-					headers: {
-						"X-Frappe-CSRF-Token": frappe.csrf_token,
-					},
+					headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
 				}
 			);
 
@@ -272,162 +305,41 @@ function open_ai_assistant_dialog(frm) {
 			const payload = json.message || json;
 
 			if (!payload.ok) {
-				throw new Error(
-					payload._server_messages || payload.exc || "Chunk processing failed"
-				);
+				throw new Error(payload._server_messages || payload.exc || "Failed");
 			}
 
-			renderTranscript($transcriptEn, __("Transcript (English)"), payload.full_transcript_en);
-			renderTranscript($transcriptEs, __("Spanish Translation"), payload.full_transcript_es);
-			renderRecommendation(payload.recommendation);
+			this.updateTranscriptEn(payload.full_transcript_en);
+			this.updateTranscriptEs(payload.full_transcript_es);
+			this.updateRecommendation(payload.recommendation);
 
-			if (isRecording) {
-				setStatus(
-					`<span class="ai-pulse"></span> ${__("Listening… chunk")} #${currentSeq} ${__("done")}`,
+			if (this.isRecording) {
+				this.setStatus(
+					`<span class="ai-pulse"></span> ${__("Listening…")} (${currentSeq} ${__("chunks")})`,
 					"green"
 				);
 			} else {
-				setStatus(`${__("Chunk")} #${currentSeq} ${__("processed")}`, "green");
+				this.setStatus(`${__("Done")} — ${currentSeq} ${__("chunks processed")}`, "green");
 			}
 		} catch (err) {
 			console.error(err);
-			setStatus(`${__("Error")}: ${err.message || err}`, "red");
+			this.setStatus(`${__("Error")}: ${err.message}`, "red");
 		} finally {
-			processingCount--;
+			this.processingCount--;
 		}
 	}
 
-	async function resetSession() {
-		stopRecording();
+	async resetSession() {
+		this.stopRecording();
 		try {
 			await frappe.xcall(
 				"remedisys.api.medical_agent.clear_visit_state",
-				{ visit_id: visitId }
+				{ visit_id: this.visitId }
 			);
-		} catch (_) {
-			// ignore
-		}
-		seqNum = 0;
-		renderTranscript($transcriptEn, __("Transcript (English)"), "");
-		renderTranscript($transcriptEs, __("Spanish Translation"), "");
-		renderRecommendation(null);
-		setStatus(__("Session reset"), "orange");
+		} catch (_) {}
+		this.seqNum = 0;
+		this.updateTranscriptEn("");
+		this.updateTranscriptEs("");
+		this.updateRecommendation(null);
+		this.setStatus(__("Session reset"), "orange");
 	}
-
-	// ---- Wire buttons after dialog is shown ----
-	d.show();
-
-	// Initial renders
-	setStatus(__("Ready — press Start Listening"), "blue");
-	renderTranscript($transcriptEn, __("Transcript (English)"), "");
-	renderTranscript($transcriptEs, __("Spanish Translation"), "");
-	renderRecommendation(null);
-
-	// Button bindings
-	d.fields_dict.btn_start_html.$wrapper
-		.find("button")
-		.on("click", () => startRecording());
-
-	d.fields_dict.btn_stop_html.$wrapper
-		.find("button")
-		.prop("disabled", true)
-		.on("click", () => stopRecording());
-
-	d.fields_dict.btn_reset_html.$wrapper
-		.find("button")
-		.on("click", () => resetSession());
-
-	// Clean up on close
-	d.onhide = () => stopRecording();
-}
-
-/* -----------------------------------------------------------------------
- * Dialog field definitions
- * ----------------------------------------------------------------------- */
-
-function build_dialog_fields(visitId) {
-	return [
-		// ---- Controls row ----
-		{
-			fieldtype: "Section Break",
-			label: __("Controls"),
-		},
-		{
-			fieldtype: "HTML",
-			fieldname: "visit_id_html",
-			options: `<div class="ai-field">
-				<label class="control-label">${__("Visit ID")}</label>
-				<div class="control-value">${visitId}</div>
-			</div>`,
-		},
-		{ fieldtype: "Column Break" },
-		{
-			fieldtype: "Select",
-			fieldname: "language_hint",
-			label: __("Language Hint"),
-			options: "\nen\nes",
-			default: "",
-			description: __("Leave blank for auto-detect"),
-		},
-		{ fieldtype: "Column Break" },
-		{
-			fieldtype: "HTML",
-			fieldname: "btn_start_html",
-			options: `<button class="btn btn-primary btn-sm btn-ai-start" id="ai-btn-start">
-				🎙️ ${__("Start Listening")}
-			</button>`,
-		},
-		{ fieldtype: "Column Break" },
-		{
-			fieldtype: "HTML",
-			fieldname: "btn_stop_html",
-			options: `<button class="btn btn-danger btn-sm btn-ai-stop" id="ai-btn-stop">
-				⏹️ ${__("Stop")}
-			</button>`,
-		},
-		{ fieldtype: "Column Break" },
-		{
-			fieldtype: "HTML",
-			fieldname: "btn_reset_html",
-			options: `<button class="btn btn-default btn-sm btn-ai-reset" id="ai-btn-reset">
-				🔄 ${__("Reset")}
-			</button>`,
-		},
-
-		// ---- Status ----
-		{ fieldtype: "Section Break" },
-		{
-			fieldtype: "HTML",
-			fieldname: "status_html",
-			options: "",
-		},
-
-		// ---- Transcripts side by side ----
-		{
-			fieldtype: "Section Break",
-			label: __("Transcripts"),
-		},
-		{
-			fieldtype: "HTML",
-			fieldname: "transcript_en_html",
-			options: "",
-		},
-		{ fieldtype: "Column Break" },
-		{
-			fieldtype: "HTML",
-			fieldname: "transcript_es_html",
-			options: "",
-		},
-
-		// ---- Recommendation ----
-		{
-			fieldtype: "Section Break",
-			label: __("Clinical Recommendation"),
-		},
-		{
-			fieldtype: "HTML",
-			fieldname: "recommendation_html",
-			options: "",
-		},
-	];
 }
