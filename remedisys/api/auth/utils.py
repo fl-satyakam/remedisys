@@ -20,7 +20,7 @@ def success_response(message: str, status_code: int = 200, **data) -> dict:
 
 def error_response(message: str, status_code: int = 400, **data) -> dict:
     return build_response("error", message, status_code=status_code, **data)
-
+    
 
 def get_user_data(user_id: str | None = None) -> dict:
     user_id = user_id or frappe.session.user
