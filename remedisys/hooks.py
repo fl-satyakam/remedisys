@@ -86,7 +86,8 @@ doctype_js = {"Patient Encounter" : "public/js/patient_encounter.js"}
 # ------------
 
 # before_install = "remedisys.install.before_install"
-# after_install = "remedisys.install.after_install"
+after_install = "remedisys.setup.after_install"
+after_migrate = "remedisys.setup.after_migrate"
 
 # Uninstallation
 # ------------
