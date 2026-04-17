@@ -971,8 +971,8 @@
 	const PATIENT_ID      = {{ patient_id | tojson }};
 	const EXISTING_ENC    = {{ (existing_encounter or "") | tojson }};
 	const CSRF            = (window.frappe && frappe.csrf_token) || "";
-	window.__AI_MODULES__ = {{ (ai_modules or []) | tojson }};
-	const AI_MODULES      = window.__AI_MODULES__ || [];
+	window.AI_MODULES_CFG = {{ (ai_modules or []) | tojson }};
+	const AI_MODULES      = window.AI_MODULES_CFG || [];
 
 	// Legacy module_key → old DOM id suffix. Lets old hardcoded IDs keep
 	// working (e.g. enc-assessment-list). New modules use their key verbatim.
