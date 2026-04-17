@@ -538,7 +538,15 @@ class AIAssistantPanel {
 	async startRecording() {
 		try {
 			this.setStatus(__("Requesting microphone..."), "processing");
-			this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			this.mediaStream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					echoCancellation: true,
+					noiseSuppression: true,
+					autoGainControl: true,
+					channelCount: 1,
+					sampleRate: 16000,
+				},
+			});
 			this.seqNum = 0;
 			this.isRecording = true;
 			this.mediaRecorder = this._createRecorder(this.mediaStream);

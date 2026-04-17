@@ -1,0 +1,79 @@
+# Reliability overlay — merged with docker-compose.yaml automatically.
+# Adds restart policy, healthcheck on backend, and memory limits so a
+# leaky queue worker can't OOM-kill MariaDB/Redis and take the site down.
+
+services:
+  backend:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/method/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 1800M
+
+  frontend:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  websocket:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  queue-short:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  queue-long:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  queue-default:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  scheduler:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  redis-cache:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis-queue:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  db:
+    deploy:
+      resources:
+        limits:
+          memory: 1200M

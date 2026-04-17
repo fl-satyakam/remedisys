@@ -1,0 +1,273 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Admin · Session {{ appointment_id }}{% endblock %}
+
+{% block head_include %}
+<style>
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+	body { background: #f4f5f7; margin: 0; }
+
+	.adm-topbar {
+		position: sticky; top: 0; z-index: 10;
+		background: #ffffff; border-bottom: 1px solid #e5e7eb;
+		padding: 10px 24px; height: 56px;
+		display: flex; align-items: center; justify-content: space-between;
+	}
+	.adm-topbar__title { font-size: 14px; font-weight: 600; color: #0f172a; }
+	.adm-topbar__right { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #64748b; }
+	.adm-topbar__right a { color: #2563eb; text-decoration: none; }
+
+	.adm-page { max-width: 1200px; margin: 0 auto; padding: 28px 24px 64px; }
+	.adm-h1 { font-size: 22px; font-weight: 600; color: #0f172a; margin: 0 0 4px; }
+	.adm-subtitle { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+
+	.adm-meta-grid {
+		display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+		margin-bottom: 24px;
+	}
+	.adm-meta {
+		background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px;
+		padding: 10px 14px;
+	}
+	.adm-meta__label {
+		font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+		color: #64748b; margin-bottom: 2px;
+	}
+	.adm-meta__value { font-size: 13px; color: #0f172a; font-weight: 500; word-break: break-word; }
+
+	.adm-section { margin-top: 28px; }
+	.adm-section__title {
+		font-size: 13px; font-weight: 600; letter-spacing: 0.4px;
+		text-transform: uppercase; color: #475569; margin: 0 0 10px;
+	}
+
+	.adm-panel {
+		background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;
+		padding: 16px;
+	}
+	.adm-panel pre {
+		margin: 0; font-size: 12px; line-height: 1.55;
+		white-space: pre-wrap; word-break: break-word;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		color: #1e293b;
+	}
+	.adm-panel--muted { color: #94a3b8; font-style: italic; }
+
+	.adm-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+	.adm-utt-list { display: flex; flex-direction: column; gap: 8px; }
+	.adm-utt {
+		background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+		padding: 10px 12px; font-size: 13px;
+	}
+	.adm-utt__head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+	.adm-utt__speaker {
+		font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+		text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
+	}
+	.adm-utt__speaker--doctor { background: #eff6ff; color: #1d4ed8; }
+	.adm-utt__speaker--patient { background: #fef3c7; color: #92400e; }
+	.adm-utt__seq { font-size: 10px; color: #94a3b8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+	.adm-table {
+		width: 100%; background: #ffffff;
+		border: 1px solid #e5e7eb; border-radius: 10px;
+		border-collapse: separate; border-spacing: 0;
+		font-size: 12px; overflow: hidden;
+	}
+	.adm-table th, .adm-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eef1f4; }
+	.adm-table th {
+		font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+		color: #64748b; background: #f8fafc; font-weight: 600;
+	}
+	.adm-table tbody tr:last-child td { border-bottom: none; }
+	.adm-table .err { color: #b91c1c; }
+
+	.adm-btn {
+		background: #dc2626; color: #ffffff; border: none;
+		padding: 8px 14px; border-radius: 7px; font-size: 12px;
+		font-weight: 600; cursor: pointer;
+	}
+	.adm-btn:hover { background: #b91c1c; }
+	.adm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if forbidden %}
+<div style="max-width:520px;margin:120px auto;background:#fff;border:1px solid #fecaca;border-radius:10px;padding:32px;text-align:center">
+	<h1 style="font-size:18px;color:#991b1b;margin:0 0 8px">403 — Admin access required</h1>
+</div>
+{% else %}
+<div class="adm-topbar">
+	<div class="adm-topbar__title">Admin · Session <code style="font-size:12px">{{ appointment_id }}</code></div>
+	<div class="adm-topbar__right">
+		<a href="/admin/sessions">Back to sessions</a>
+	</div>
+</div>
+
+<div class="adm-page">
+	{% if error %}
+	<div class="adm-panel adm-panel--muted">{{ error }}</div>
+	{% else %}
+
+	<h1 class="adm-h1">{{ appointment.patient_name or 'Unknown patient' }}</h1>
+	<div class="adm-subtitle">
+		{{ practitioner_name or '—' }}
+		{% if appointment.appointment_date %} · {{ appointment.appointment_date }}{% endif %}
+		{% if appointment.appointment_time %} · {{ appointment.appointment_time }}{% endif %}
+		{% if has_live_state %} · <strong style="color:#b91c1c">LIVE</strong>{% elif encounter_name %} · <strong style="color:#047857">COMPLETED</strong>{% endif %}
+	</div>
+
+	<div class="adm-meta-grid">
+		<div class="adm-meta">
+			<div class="adm-meta__label">Appointment</div>
+			<div class="adm-meta__value"><code>{{ appointment_id }}</code></div>
+		</div>
+		<div class="adm-meta">
+			<div class="adm-meta__label">Encounter</div>
+			<div class="adm-meta__value">{% if encounter_name %}<a href="/app/patient-encounter/{{ encounter_name }}" target="_blank">{{ encounter_name }}</a>{% else %}—{% endif %}</div>
+		</div>
+		<div class="adm-meta">
+			<div class="adm-meta__label">Chunks</div>
+			<div class="adm-meta__value">{{ (chunks or []) | length }}</div>
+		</div>
+		<div class="adm-meta">
+			<div class="adm-meta__label">Utterances</div>
+			<div class="adm-meta__value">{{ (utterances or []) | length }}</div>
+		</div>
+	</div>
+
+	{% if has_live_state %}
+	<section class="adm-section">
+		<button type="button" class="adm-btn" id="force-clear-btn"
+			data-visit="{{ appointment_id }}">Force clear Redis state</button>
+		<span id="force-clear-msg" style="margin-left:12px;font-size:12px;color:#64748b"></span>
+	</section>
+	{% endif %}
+
+	<section class="adm-section">
+		<h2 class="adm-section__title">Transcripts</h2>
+		<div class="adm-split">
+			<div class="adm-panel">
+				<div style="font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">English</div>
+				{% if transcript_en %}
+				<pre>{{ transcript_en }}</pre>
+				{% else %}
+				<div class="adm-panel--muted">No transcript captured.</div>
+				{% endif %}
+			</div>
+			<div class="adm-panel">
+				<div style="font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Spanish</div>
+				{% if transcript_es %}
+				<pre>{{ transcript_es }}</pre>
+				{% else %}
+				<div class="adm-panel--muted">No translation captured.</div>
+				{% endif %}
+			</div>
+		</div>
+	</section>
+
+	<section class="adm-section">
+		<h2 class="adm-section__title">Utterances</h2>
+		{% if utterances %}
+		<div class="adm-utt-list">
+			{% for u in utterances %}
+			<div class="adm-utt">
+				<div class="adm-utt__head">
+					<span class="adm-utt__speaker adm-utt__speaker--{{ u.speaker or 'patient' }}">{{ u.speaker or 'patient' }}</span>
+					<span class="adm-utt__seq">seq #{{ u.sequence_number or '?' }}{% if u.speaker_tag is defined %} · tag {{ u.speaker_tag }}{% endif %}</span>
+				</div>
+				<div>{{ u.text }}</div>
+			</div>
+			{% endfor %}
+		</div>
+		{% else %}
+		<div class="adm-panel adm-panel--muted">No utterances stored (likely single-speaker OpenAI mode).</div>
+		{% endif %}
+	</section>
+
+	<section class="adm-section">
+		<h2 class="adm-section__title">Recommendation JSON</h2>
+		<div class="adm-panel">
+			{% if recommendation_pretty %}
+			<pre>{{ recommendation_pretty }}</pre>
+			{% else %}
+			<div class="adm-panel--muted">No recommendation produced.</div>
+			{% endif %}
+		</div>
+	</section>
+
+	<section class="adm-section">
+		<h2 class="adm-section__title">Agent log rows ({{ logs | length }})</h2>
+		{% if logs %}
+		<table class="adm-table">
+			<thead>
+				<tr>
+					<th>Time</th>
+					<th>Event</th>
+					<th>Seq</th>
+					<th>Duration (ms)</th>
+					<th>Provider</th>
+					<th>Speakers</th>
+					<th>Text len</th>
+					<th>Error</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for l in logs %}
+				<tr>
+					<td>{{ l.creation }}</td>
+					<td>{{ l.event_type }}</td>
+					<td>{{ l.sequence_number or '—' }}</td>
+					<td>{{ l.duration_ms or '—' }}</td>
+					<td>{{ l.provider or '—' }}</td>
+					<td>{{ l.speaker_count or '—' }}</td>
+					<td>{{ l.text_length or '—' }}</td>
+					<td class="err">{{ (l.error_message or '') | truncate(120) }}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<div class="adm-panel adm-panel--muted">No log rows recorded yet.</div>
+		{% endif %}
+	</section>
+
+	{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+	const btn = document.getElementById("force-clear-btn");
+	if (!btn) return;
+	btn.addEventListener("click", async function () {
+		const visit = btn.getAttribute("data-visit");
+		if (!visit) return;
+		if (!confirm("Force-clear Redis state for " + visit + "?")) return;
+		btn.disabled = true;
+		const msg = document.getElementById("force-clear-msg");
+		msg.textContent = "Clearing…";
+		try {
+			const form = new FormData();
+			form.append("visit_id", visit);
+			const resp = await fetch(
+				"/api/method/remedisys.api.medical_agent.clear_visit_state",
+				{ method: "POST", body: form, headers: { "X-Frappe-CSRF-Token": window.frappe && frappe.csrf_token || "" } }
+			);
+			if (!resp.ok) throw new Error("HTTP " + resp.status);
+			msg.textContent = "Cleared. Reloading…";
+			setTimeout(function () { window.location.reload(); }, 500);
+		} catch (e) {
+			msg.textContent = "Failed: " + e.message;
+			btn.disabled = false;
+		}
+	});
+})();
+</script>
+{% endblock %}

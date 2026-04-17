@@ -1,0 +1,183 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Admin · Logs{% endblock %}
+
+{% block head_include %}
+<style>
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+	body { background: #f4f5f7; margin: 0; }
+
+	.adm-topbar {
+		position: sticky; top: 0; z-index: 10;
+		background: #ffffff; border-bottom: 1px solid #e5e7eb;
+		padding: 10px 24px; height: 56px;
+		display: flex; align-items: center; justify-content: space-between;
+	}
+	.adm-topbar__title { font-size: 14px; font-weight: 600; color: #0f172a; }
+	.adm-topbar__right a { color: #2563eb; text-decoration: none; font-size: 12px; }
+
+	.adm-page { max-width: 1300px; margin: 0 auto; padding: 24px 24px 64px; }
+	.adm-h1 { font-size: 22px; font-weight: 600; color: #0f172a; margin: 0 0 4px; }
+	.adm-subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+
+	.adm-filter-bar {
+		display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+		background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;
+		padding: 12px 14px; margin-bottom: 16px;
+	}
+	.adm-field { display: flex; flex-direction: column; gap: 4px; }
+	.adm-field__label {
+		font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+		color: #64748b; font-weight: 600;
+	}
+	.adm-field__input, .adm-field__select {
+		height: 32px; padding: 0 10px; font-size: 12px;
+		border: 1px solid #d8dee6; border-radius: 6px;
+		background: #ffffff; color: #0f172a; font-family: inherit;
+	}
+	.adm-field--check { flex-direction: row; align-items: center; gap: 6px; }
+
+	.adm-btn {
+		height: 32px; padding: 0 14px; border-radius: 6px;
+		font-size: 12px; font-weight: 600; cursor: pointer;
+		border: 1px solid #2563eb; background: #2563eb; color: #ffffff;
+	}
+	.adm-btn--ghost { background: transparent; color: #64748b; border-color: #cbd5e1; }
+
+	.adm-table {
+		width: 100%; background: #ffffff;
+		border: 1px solid #e5e7eb; border-radius: 10px;
+		border-collapse: separate; border-spacing: 0;
+		font-size: 12px; overflow: hidden;
+	}
+	.adm-table th, .adm-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eef1f4; }
+	.adm-table th {
+		font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+		color: #64748b; background: #f8fafc; font-weight: 600;
+	}
+	.adm-table tbody tr:last-child td { border-bottom: none; }
+	.adm-table .err { color: #b91c1c; }
+	.adm-table a { color: #2563eb; text-decoration: none; }
+
+	.adm-empty { color: #94a3b8; font-style: italic; padding: 24px; text-align: center; }
+
+	.adm-pager {
+		margin-top: 14px; display: flex; justify-content: space-between; align-items: center;
+		font-size: 12px; color: #64748b;
+	}
+	.adm-pager a {
+		color: #2563eb; text-decoration: none;
+		padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff;
+	}
+	.adm-pager a[disabled], .adm-pager span[disabled] {
+		opacity: 0.4; pointer-events: none;
+	}
+
+	.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
+	.badge--transcribe { background: #eff6ff; color: #1d4ed8; }
+	.badge--translate { background: #f0f9ff; color: #0369a1; }
+	.badge--recommend { background: #ecfdf5; color: #047857; }
+	.badge--chat { background: #fdf4ff; color: #86198f; }
+	.badge--end_encounter { background: #f1f5f9; color: #334155; }
+	.badge--error { background: #fee2e2; color: #b91c1c; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if forbidden %}
+<div style="max-width:520px;margin:120px auto;background:#fff;border:1px solid #fecaca;border-radius:10px;padding:32px;text-align:center">
+	<h1 style="font-size:18px;color:#991b1b;margin:0 0 8px">403 — Admin access required</h1>
+</div>
+{% else %}
+<div class="adm-topbar">
+	<div class="adm-topbar__title">Admin · Logs</div>
+	<div class="adm-topbar__right"><a href="/admin">Back</a></div>
+</div>
+
+<div class="adm-page">
+	<h1 class="adm-h1">Medical Agent Log</h1>
+	<div class="adm-subtitle">Per-operation telemetry for the AI pipeline. Showing {{ rows | length }} of {{ total }}.</div>
+
+	<form method="get" class="adm-filter-bar">
+		<div class="adm-field">
+			<label class="adm-field__label" for="f-event">Event</label>
+			<select class="adm-field__select" id="f-event" name="event_type">
+				<option value="">Any</option>
+				{% for ev in event_types %}
+				<option value="{{ ev }}" {% if filters.event_type == ev %}selected{% endif %}>{{ ev }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="adm-field">
+			<label class="adm-field__label" for="f-visit">Visit ID</label>
+			<input class="adm-field__input" id="f-visit" name="visit_id" value="{{ filters.visit_id }}" placeholder="APT-…" />
+		</div>
+		<div class="adm-field">
+			<label class="adm-field__label" for="f-from">From</label>
+			<input class="adm-field__input" id="f-from" name="from_date" type="date" value="{{ filters.from_date }}" />
+		</div>
+		<div class="adm-field">
+			<label class="adm-field__label" for="f-to">To</label>
+			<input class="adm-field__input" id="f-to" name="to_date" type="date" value="{{ filters.to_date }}" />
+		</div>
+		<div class="adm-field adm-field--check">
+			<input id="f-err" type="checkbox" name="errors_only" value="1" {% if filters.errors_only %}checked{% endif %} />
+			<label for="f-err" style="font-size:12px;color:#475569">Errors only</label>
+		</div>
+		<button class="adm-btn" type="submit">Apply</button>
+		<a class="adm-btn adm-btn--ghost" href="/admin/logs" style="display:inline-flex;align-items:center;text-decoration:none">Reset</a>
+	</form>
+
+	{% if rows %}
+	<table class="adm-table">
+		<thead>
+			<tr>
+				<th>Time</th>
+				<th>Event</th>
+				<th>Visit</th>
+				<th>Seq</th>
+				<th>Duration (ms)</th>
+				<th>Provider</th>
+				<th>Text len</th>
+				<th>Error</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for r in rows %}
+			<tr>
+				<td>{{ r.creation }}</td>
+				<td><span class="badge badge--{{ r.event_type }}">{{ r.event_type }}</span></td>
+				<td>{% if r.visit_id %}<a href="/admin/session?a={{ r.visit_id }}">{{ r.visit_id }}</a>{% else %}—{% endif %}</td>
+				<td>{{ r.sequence_number or '—' }}</td>
+				<td>{{ r.duration_ms or '—' }}</td>
+				<td>{{ r.provider or '—' }}</td>
+				<td>{{ r.text_length or '—' }}</td>
+				<td class="err">{{ (r.error_message or '') | truncate(100) }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+
+	<div class="adm-pager">
+		<div>Page {{ page }} of {{ total_pages }}</div>
+		<div style="display:flex;gap:8px">
+			{% if page > 1 %}
+			<a href="?event_type={{ filters.event_type }}&visit_id={{ filters.visit_id }}&from_date={{ filters.from_date }}&to_date={{ filters.to_date }}{% if filters.errors_only %}&errors_only=1{% endif %}&page={{ page - 1 }}">&larr; Prev</a>
+			{% else %}
+			<span disabled>&larr; Prev</span>
+			{% endif %}
+			{% if page < total_pages %}
+			<a href="?event_type={{ filters.event_type }}&visit_id={{ filters.visit_id }}&from_date={{ filters.from_date }}&to_date={{ filters.to_date }}{% if filters.errors_only %}&errors_only=1{% endif %}&page={{ page + 1 }}">Next &rarr;</a>
+			{% else %}
+			<span disabled>Next &rarr;</span>
+			{% endif %}
+		</div>
+	</div>
+	{% else %}
+	<div class="adm-table"><div class="adm-empty">No log rows match this filter. (If you just enabled the DocType, run <code>bench migrate</code> first.)</div></div>
+	{% endif %}
+</div>
+{% endif %}
+{% endblock %}

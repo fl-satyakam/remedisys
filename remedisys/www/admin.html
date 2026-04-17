@@ -1,0 +1,179 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Remedisys Admin{% endblock %}
+
+{% block head_include %}
+<style>
+	/* Same minimalist chrome as /encounter and /queue */
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+	body { background: #f4f5f7; margin: 0; }
+
+	.adm-topbar {
+		position: sticky; top: 0; z-index: 10;
+		background: #ffffff;
+		border-bottom: 1px solid #e5e7eb;
+		padding: 10px 24px;
+		height: 56px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.adm-topbar__title {
+		font-size: 14px; font-weight: 600; color: #0f172a;
+	}
+	.adm-topbar__right {
+		display: flex; gap: 10px; align-items: center;
+		font-size: 12px; color: #64748b;
+	}
+	.adm-topbar__right a {
+		color: #2563eb; text-decoration: none;
+	}
+
+	.adm-page { max-width: 1100px; margin: 0 auto; padding: 28px 24px 64px; }
+	.adm-h1 { font-size: 22px; font-weight: 600; color: #0f172a; margin: 0 0 4px; }
+	.adm-subtitle { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+
+	.adm-stats {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 12px;
+		margin-bottom: 28px;
+	}
+	.adm-stat {
+		background: #ffffff;
+		border: 1px solid #e5e7eb;
+		border-radius: 10px;
+		padding: 14px 16px;
+	}
+	.adm-stat__label {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+		color: #64748b;
+		margin-bottom: 6px;
+	}
+	.adm-stat__value {
+		font-size: 22px;
+		font-weight: 600;
+		color: #0f172a;
+		font-variant-numeric: tabular-nums;
+	}
+	.adm-stat__sub {
+		font-size: 11px;
+		color: #94a3b8;
+		margin-top: 2px;
+	}
+
+	.adm-cards {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 14px;
+	}
+	.adm-card {
+		background: #ffffff;
+		border: 1px solid #e5e7eb;
+		border-radius: 10px;
+		padding: 18px 20px;
+		text-decoration: none;
+		color: inherit;
+		display: block;
+		transition: border-color 0.12s ease, box-shadow 0.12s ease;
+	}
+	.adm-card:hover {
+		border-color: #2563eb;
+		box-shadow: 0 4px 10px rgba(37, 99, 235, 0.08);
+		text-decoration: none;
+		color: inherit;
+	}
+	.adm-card__title {
+		font-size: 14px;
+		font-weight: 600;
+		color: #0f172a;
+		margin-bottom: 4px;
+	}
+	.adm-card__body {
+		font-size: 12px;
+		color: #64748b;
+		line-height: 1.5;
+	}
+
+	.adm-403 {
+		max-width: 520px;
+		margin: 120px auto;
+		background: #fff;
+		border: 1px solid #fecaca;
+		border-radius: 10px;
+		padding: 32px;
+		text-align: center;
+	}
+	.adm-403 h1 { font-size: 18px; color: #991b1b; margin: 0 0 8px; }
+	.adm-403 p { font-size: 13px; color: #64748b; margin: 0; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if forbidden %}
+<div class="adm-403">
+	<h1>403 — Admin access required</h1>
+	<p>Your account does not have the System Manager or Remedisys Admin role.</p>
+</div>
+{% else %}
+<div class="adm-topbar">
+	<div class="adm-topbar__title">Remedisys Admin</div>
+	<div class="adm-topbar__right">
+		<a href="/queue">Queue</a>
+		<span>·</span>
+		<span>{{ user }}</span>
+	</div>
+</div>
+
+<div class="adm-page">
+	<h1 class="adm-h1">Operator portal</h1>
+	<div class="adm-subtitle">Monitor live consultations, inspect transcripts, and debug agent issues.</div>
+
+	<section class="adm-stats">
+		<div class="adm-stat">
+			<div class="adm-stat__label">Chunks today</div>
+			<div class="adm-stat__value">{{ stats.chunks_today }}</div>
+			<div class="adm-stat__sub">transcribe events</div>
+		</div>
+		<div class="adm-stat">
+			<div class="adm-stat__label">Avg transcribe</div>
+			<div class="adm-stat__value">{{ stats.avg_transcribe_ms }} <span style="font-size:12px;color:#94a3b8">ms</span></div>
+			<div class="adm-stat__sub">last 100 chunks</div>
+		</div>
+		<div class="adm-stat">
+			<div class="adm-stat__label">Avg recommend</div>
+			<div class="adm-stat__value">{{ stats.avg_recommend_ms }} <span style="font-size:12px;color:#94a3b8">ms</span></div>
+			<div class="adm-stat__sub">last 100 calls</div>
+		</div>
+		<div class="adm-stat">
+			<div class="adm-stat__label">Error rate (24h)</div>
+			<div class="adm-stat__value">{{ (stats.error_rate * 100) | round(2) }}<span style="font-size:12px;color:#94a3b8">%</span></div>
+			<div class="adm-stat__sub">{{ stats.errors_24h }} / {{ stats.total_events_24h }} events</div>
+		</div>
+	</section>
+
+	<section class="adm-cards">
+		<a class="adm-card" href="/admin/sessions">
+			<div class="adm-card__title">Sessions</div>
+			<div class="adm-card__body">Live Redis visit states + recent completed encounters. View transcripts.</div>
+		</a>
+		<a class="adm-card" href="/admin/logs">
+			<div class="adm-card__title">Agent logs</div>
+			<div class="adm-card__body">Per-chunk latency, provider, text length. Filter by event type or visit.</div>
+		</a>
+		<a class="adm-card" href="/admin/errors">
+			<div class="adm-card__title">Error inspector</div>
+			<div class="adm-card__body">Last 50 Error Log entries mentioning the medical_agent module.</div>
+		</a>
+		<a class="adm-card" href="/app/patient-encounter">
+			<div class="adm-card__title">Patient Encounter DB</div>
+			<div class="adm-card__body">Read-only browser for completed encounters in the Frappe desk.</div>
+		</a>
+	</section>
+</div>
+{% endif %}
+{% endblock %}

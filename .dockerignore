@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+node_modules
+*.log
+.DS_Store
+.pytest_cache
+.ruff_cache
+.mypy_cache
+cypress/videos
+cypress/screenshots
+remedisys/public/dist
+docs

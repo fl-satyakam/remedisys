@@ -1,0 +1,165 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Admin · Sessions{% endblock %}
+
+{% block head_include %}
+<meta http-equiv="refresh" content="10" />
+<style>
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+	body { background: #f4f5f7; margin: 0; }
+
+	.adm-topbar {
+		position: sticky; top: 0; z-index: 10;
+		background: #ffffff;
+		border-bottom: 1px solid #e5e7eb;
+		padding: 10px 24px;
+		height: 56px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.adm-topbar__title { font-size: 14px; font-weight: 600; color: #0f172a; }
+	.adm-topbar__right { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #64748b; }
+	.adm-topbar__right a { color: #2563eb; text-decoration: none; }
+
+	.adm-page { max-width: 1200px; margin: 0 auto; padding: 28px 24px 64px; }
+	.adm-h1 { font-size: 22px; font-weight: 600; color: #0f172a; margin: 0 0 4px; }
+	.adm-subtitle { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+
+	.adm-section { margin-top: 28px; }
+	.adm-section__title {
+		font-size: 13px; font-weight: 600; letter-spacing: 0.4px;
+		text-transform: uppercase; color: #475569; margin: 0 0 10px;
+	}
+	.adm-table {
+		width: 100%;
+		background: #ffffff;
+		border: 1px solid #e5e7eb;
+		border-radius: 10px;
+		border-collapse: separate;
+		border-spacing: 0;
+		font-size: 13px;
+		overflow: hidden;
+	}
+	.adm-table th, .adm-table td {
+		padding: 10px 14px;
+		text-align: left;
+		border-bottom: 1px solid #eef1f4;
+	}
+	.adm-table th {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+		color: #64748b;
+		font-weight: 600;
+		background: #f8fafc;
+	}
+	.adm-table tbody tr:last-child td { border-bottom: none; }
+	.adm-table a { color: #2563eb; text-decoration: none; }
+
+	.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
+	.pill--live { background: #fee2e2; color: #b91c1c; }
+	.pill--done { background: #ecfdf5; color: #047857; }
+
+	.adm-empty { color: #94a3b8; font-style: italic; padding: 24px; text-align: center; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if forbidden %}
+<div style="max-width:520px;margin:120px auto;background:#fff;border:1px solid #fecaca;border-radius:10px;padding:32px;text-align:center">
+	<h1 style="font-size:18px;color:#991b1b;margin:0 0 8px">403 — Admin access required</h1>
+</div>
+{% else %}
+<div class="adm-topbar">
+	<div class="adm-topbar__title">Remedisys Admin · Sessions</div>
+	<div class="adm-topbar__right">
+		<a href="/admin">Back</a>
+		<span>·</span>
+		<span>auto-refresh 10s</span>
+	</div>
+</div>
+
+<div class="adm-page">
+	<h1 class="adm-h1">Sessions</h1>
+	<div class="adm-subtitle">Live Redis state + the last 100 completed Patient Encounters.</div>
+
+	<section class="adm-section">
+		<h2 class="adm-section__title">Live ({{ live_rows | length }})</h2>
+		{% if live_rows %}
+		<table class="adm-table">
+			<thead>
+				<tr>
+					<th>Appointment</th>
+					<th>Patient</th>
+					<th>Doctor</th>
+					<th>Date</th>
+					<th>Status</th>
+					<th>Chunks</th>
+					<th>Utterances</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for r in live_rows %}
+				<tr>
+					<td><code>{{ r.appointment }}</code></td>
+					<td>{{ r.patient_name }}</td>
+					<td>{{ r.practitioner }}</td>
+					<td>{{ r.appointment_date or '—' }}{% if r.appointment_time %} · {{ r.appointment_time }}{% endif %}</td>
+					<td><span class="pill pill--live">LIVE</span></td>
+					<td>{{ r.chunk_count }}</td>
+					<td>{{ r.utterance_count }}</td>
+					<td><a href="/admin/session?a={{ r.appointment }}">View transcript</a></td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<div class="adm-table"><div class="adm-empty">No live sessions in Redis.</div></div>
+		{% endif %}
+	</section>
+
+	<section class="adm-section">
+		<h2 class="adm-section__title">Completed ({{ completed_rows | length }})</h2>
+		{% if completed_rows %}
+		<table class="adm-table">
+			<thead>
+				<tr>
+					<th>Encounter</th>
+					<th>Appointment</th>
+					<th>Patient</th>
+					<th>Doctor</th>
+					<th>Date</th>
+					<th>Modified</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for r in completed_rows %}
+				<tr>
+					<td><code>{{ r.encounter_name }}</code></td>
+					<td><code>{{ r.appointment or '—' }}</code></td>
+					<td>{{ r.patient_name }}</td>
+					<td>{{ r.practitioner }}</td>
+					<td>{{ r.encounter_date or '—' }}{% if r.encounter_time %} · {{ r.encounter_time }}{% endif %}</td>
+					<td>{{ r.modified }}</td>
+					<td>
+						{% if r.appointment %}
+						<a href="/admin/session?a={{ r.appointment }}">View</a> ·
+						{% endif %}
+						<a href="/app/patient-encounter/{{ r.encounter_name }}">Desk</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<div class="adm-table"><div class="adm-empty">No completed encounters yet.</div></div>
+		{% endif %}
+	</section>
+</div>
+{% endif %}
+{% endblock %}

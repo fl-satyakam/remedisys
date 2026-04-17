@@ -1,0 +1,636 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Summary — {{ patient_name or "Patient" }}{% endblock %}
+
+{% block head_include %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+	/* Same palette as /encounter for visual continuity */
+	:root {
+		--cream-50:  #fbfaf6;  --cream-100: #f5f2ea;
+		--ink-900: #1d2330;    --ink-700: #384152;   --ink-500: #6b7280;
+		--ink-400: #9199a6;    --ink-300: #c5cad3;   --ink-200: #e2e5eb;   --ink-100: #ecedf0;
+
+		--mint-bg: #e9f5ee;    --mint-brd: #b9e0cb;   --mint-ink: #0f5c3a;
+		--lav-bg: #efeafc;     --lav-brd: #d6cbf4;    --lav-ink: #4c359b;
+		--peach-bg: #ffeee0;   --peach-brd: #f9cda2;  --peach-ink: #9b4821;
+		--rose-bg: #ffe7ec;    --rose-brd: #f7bdc9;   --rose-ink: #9b2344;
+		--sky-bg: #e1f0fb;     --sky-brd: #b7d5ec;    --sky-ink: #18527e;
+		--blush-bg: #fde4e4;   --blush-brd: #f2b5b5;  --blush-ink: #8b2525;
+		--butter-bg: #fff6d9;  --butter-brd: #edd79a; --butter-ink: #6a4e0d;
+
+		--font-body:    'Manrope', system-ui, -apple-system, sans-serif;
+		--font-display: 'Fraunces', Georgia, serif;
+		--shadow-soft: 0 1px 2px rgba(29,35,48,.04), 0 4px 14px -8px rgba(29,35,48,.08);
+		--shadow-lift: 0 2px 4px rgba(29,35,48,.05), 0 8px 22px -10px rgba(29,35,48,.12);
+	}
+
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+
+	body {
+		background:
+			radial-gradient(1200px 600px at 85% -10%, #eaf3ff 0%, transparent 60%),
+			radial-gradient(900px 500px at -10% 10%, #f3ecff 0%, transparent 55%),
+			radial-gradient(700px 500px at 50% 110%, #e9f5ee 0%, transparent 60%),
+			var(--cream-50);
+		background-attachment: fixed;
+		margin: 0;
+		font-family: var(--font-body);
+		color: var(--ink-900);
+		-webkit-font-smoothing: antialiased;
+	}
+
+	.sum-shell {
+		max-width: 1080px;
+		margin: 0 auto;
+		padding: 32px 28px 80px;
+	}
+
+	/* ---- Topbar ---- */
+	.sum-topbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 24px;
+		gap: 18px;
+	}
+	.sum-back {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		padding: 8px 12px;
+		background: #ffffff;
+		border: 1px solid var(--ink-200);
+		border-radius: 9px;
+		color: var(--ink-700);
+		font-size: 13px;
+		font-weight: 500;
+		text-decoration: none;
+		transition: background .15s ease, border-color .15s ease;
+	}
+	.sum-back:hover { background: var(--cream-100); border-color: var(--ink-300); color: var(--ink-900); text-decoration: none; }
+	.sum-eyebrow {
+		font-family: var(--font-display);
+		font-size: 13px;
+		font-style: italic;
+		color: var(--ink-500);
+		letter-spacing: 0.3px;
+	}
+
+	/* ---- Hero header ---- */
+	.sum-hero {
+		background: linear-gradient(135deg, #ffffff 0%, #f8fafd 100%);
+		border: 1px solid var(--ink-100);
+		border-radius: 20px;
+		padding: 28px 32px;
+		margin-bottom: 22px;
+		box-shadow: var(--shadow-lift);
+		position: relative;
+		overflow: hidden;
+	}
+	.sum-hero::before {
+		content: "";
+		position: absolute;
+		top: -40px; right: -40px;
+		width: 180px; height: 180px;
+		background: radial-gradient(circle, var(--mint-bg) 0%, transparent 70%);
+		opacity: 0.6;
+		pointer-events: none;
+	}
+	.sum-hero__grid {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 24px;
+		align-items: start;
+		position: relative;
+	}
+	.sum-hero__eyebrow {
+		font-family: var(--font-display);
+		font-size: 12px;
+		font-style: italic;
+		color: var(--mint-ink);
+		letter-spacing: 0.4px;
+		margin-bottom: 6px;
+		text-transform: uppercase;
+		font-weight: 600;
+	}
+	.sum-hero__title {
+		font-family: var(--font-display);
+		font-size: 32px;
+		font-weight: 500;
+		letter-spacing: -0.02em;
+		color: var(--ink-900);
+		line-height: 1.1;
+		margin: 0 0 8px;
+	}
+	.sum-hero__meta {
+		font-size: 13px;
+		color: var(--ink-500);
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 7px;
+	}
+	.sum-hero__meta .dot { color: var(--ink-300); }
+	.sum-urgency {
+		display: inline-block;
+		padding: 5px 14px;
+		border-radius: 999px;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.5px;
+		text-transform: uppercase;
+		margin-top: 8px;
+	}
+	.sum-urgency--low        { background: var(--mint-bg);  color: var(--mint-ink);  border: 1px solid var(--mint-brd); }
+	.sum-urgency--moderate   { background: var(--peach-bg); color: var(--peach-ink); border: 1px solid var(--peach-brd); }
+	.sum-urgency--high       { background: var(--rose-bg);  color: var(--rose-ink);  border: 1px solid var(--rose-brd); }
+	.sum-urgency--emergent   { background: var(--blush-ink); color: #ffffff;         border: 1px solid var(--blush-ink); }
+
+	.sum-hero__actions {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		min-width: 220px;
+	}
+	.sum-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 9px;
+		padding: 12px 18px;
+		border-radius: 11px;
+		font-family: var(--font-body);
+		font-size: 13.5px;
+		font-weight: 600;
+		letter-spacing: 0.1px;
+		cursor: pointer;
+		border: 1px solid transparent;
+		transition: transform .12s ease, box-shadow .15s ease, background .2s ease;
+		text-decoration: none;
+	}
+	.sum-btn:hover { transform: translateY(-1px); }
+	.sum-btn--invoice {
+		background: linear-gradient(180deg, #f0a877 0%, #b86630 100%);
+		color: #ffffff;
+		border-color: #a55928;
+		box-shadow: 0 4px 12px -4px rgba(184, 102, 48, 0.45);
+	}
+	.sum-btn--invoice:hover {
+		color: #ffffff; text-decoration: none;
+		box-shadow: 0 6px 16px -4px rgba(184, 102, 48, 0.55);
+	}
+	.sum-btn--prescription {
+		background: linear-gradient(180deg, #8c7ed4 0%, #4c359b 100%);
+		color: #ffffff;
+		border-color: #3d2a82;
+		box-shadow: 0 4px 12px -4px rgba(76, 53, 155, 0.45);
+	}
+	.sum-btn--prescription:hover {
+		color: #ffffff; text-decoration: none;
+		box-shadow: 0 6px 16px -4px rgba(76, 53, 155, 0.55);
+	}
+	.sum-btn[disabled] { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+	/* ---- Content grid ---- */
+	.sum-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 18px;
+	}
+	.sum-grid--full { grid-column: 1 / -1; }
+
+	/* ---- Panels ---- */
+	.sum-panel {
+		background: #ffffff;
+		border: 1px solid var(--ink-100);
+		border-radius: 16px;
+		padding: 22px 24px;
+		box-shadow: var(--shadow-soft);
+		margin-bottom: 18px;
+	}
+	.sum-panel__label {
+		font-family: var(--font-display);
+		font-size: 11px;
+		font-weight: 600;
+		font-style: italic;
+		letter-spacing: 0.8px;
+		text-transform: uppercase;
+		margin-bottom: 4px;
+		display: block;
+	}
+	.sum-panel__title {
+		font-family: var(--font-display);
+		font-size: 19px;
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		margin: 0 0 14px;
+		color: var(--ink-900);
+	}
+	.sum-panel__body p { margin: 0 0 10px; line-height: 1.6; color: var(--ink-700); font-size: 14px; }
+	.sum-panel__body p:last-child { margin-bottom: 0; }
+
+	.sum-panel--mint   { border-left: 4px solid var(--mint-brd); }
+	.sum-panel--mint   .sum-panel__label { color: var(--mint-ink); }
+	.sum-panel--lav    { border-left: 4px solid var(--lav-brd); }
+	.sum-panel--lav    .sum-panel__label { color: var(--lav-ink); }
+	.sum-panel--peach  { border-left: 4px solid var(--peach-brd); }
+	.sum-panel--peach  .sum-panel__label { color: var(--peach-ink); }
+	.sum-panel--rose   { border-left: 4px solid var(--rose-brd); }
+	.sum-panel--rose   .sum-panel__label { color: var(--rose-ink); }
+	.sum-panel--sky    { border-left: 4px solid var(--sky-brd); }
+	.sum-panel--sky    .sum-panel__label { color: var(--sky-ink); }
+	.sum-panel--butter { border-left: 4px solid var(--butter-brd); background: #fffdf4; }
+	.sum-panel--butter .sum-panel__label { color: var(--butter-ink); }
+	.sum-panel--blush  { border-left: 4px solid var(--blush-brd); background: #fff7f7; }
+	.sum-panel--blush  .sum-panel__label { color: var(--blush-ink); }
+
+	/* ---- Tag list (tests / meds / follow-ups) ---- */
+	.sum-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.sum-tags li {
+		display: inline-flex;
+		align-items: center;
+		padding: 8px 14px;
+		border-radius: 10px;
+		background: #ffffff;
+		border: 1px solid var(--ink-200);
+		font-size: 13.5px;
+		font-weight: 500;
+		color: var(--ink-700);
+	}
+	.sum-panel--peach .sum-tags li  { background: var(--peach-bg); border-color: var(--peach-brd); color: var(--peach-ink); }
+	.sum-panel--rose  .sum-tags li  { background: var(--rose-bg);  border-color: var(--rose-brd);  color: var(--rose-ink); }
+	.sum-panel--sky   .sum-tags li  { background: var(--sky-bg);   border-color: var(--sky-brd);   color: var(--sky-ink); }
+	.sum-panel--lav   .sum-tags li  { background: var(--lav-bg);   border-color: var(--lav-brd);   color: var(--lav-ink); }
+
+	.sum-bullets {
+		margin: 0;
+		padding-left: 22px;
+		color: var(--blush-ink);
+	}
+	.sum-bullets li {
+		margin-bottom: 6px;
+		font-weight: 500;
+		font-size: 14px;
+	}
+
+	.sum-notes {
+		font-family: var(--font-body);
+		font-size: 14px;
+		color: var(--ink-900);
+		white-space: pre-wrap;
+		line-height: 1.55;
+	}
+
+	/* ---- Transcript ---- */
+	.sum-transcript {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		max-height: 460px;
+		overflow-y: auto;
+		padding: 6px 2px 6px 0;
+	}
+	.sum-bubble {
+		max-width: 85%;
+		padding: 10px 14px;
+		border-radius: 16px;
+		font-size: 13.5px;
+		line-height: 1.45;
+		word-wrap: break-word;
+	}
+	.sum-bubble__who {
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		opacity: 0.75;
+		margin-bottom: 3px;
+	}
+	.sum-bubble--doctor {
+		align-self: flex-start;
+		background: var(--lav-bg);
+		color: var(--lav-ink);
+		border: 1px solid var(--lav-brd);
+		border-bottom-left-radius: 5px;
+	}
+	.sum-bubble--patient {
+		align-self: flex-end;
+		background: var(--mint-bg);
+		color: var(--mint-ink);
+		border: 1px solid var(--mint-brd);
+		border-bottom-right-radius: 5px;
+	}
+
+	.sum-transcript-fallback {
+		white-space: pre-wrap;
+		font-size: 14px;
+		line-height: 1.55;
+		color: var(--ink-700);
+	}
+
+	/* ---- Tabs for bilingual transcript ---- */
+	.sum-tabs {
+		display: inline-flex;
+		gap: 4px;
+		padding: 4px;
+		background: var(--cream-100);
+		border-radius: 10px;
+		margin-bottom: 14px;
+	}
+	.sum-tab {
+		background: transparent;
+		border: none;
+		padding: 6px 14px;
+		border-radius: 7px;
+		font-family: var(--font-body);
+		font-size: 12.5px;
+		font-weight: 600;
+		color: var(--ink-500);
+		cursor: pointer;
+		transition: all .15s ease;
+	}
+	.sum-tab.is-active { background: #ffffff; color: var(--ink-900); box-shadow: var(--shadow-soft); }
+
+	/* ---- Empty state ---- */
+	.sum-empty {
+		font-style: italic;
+		color: var(--ink-400);
+		font-size: 13.5px;
+		margin: 0;
+	}
+
+	/* ---- Error state ---- */
+	.sum-error {
+		max-width: 520px;
+		margin: 80px auto;
+		padding: 32px;
+		background: #ffffff;
+		border: 1px solid var(--blush-brd);
+		border-radius: 16px;
+		text-align: center;
+		color: var(--blush-ink);
+		box-shadow: var(--shadow-lift);
+	}
+	.sum-error h3 {
+		font-family: var(--font-display);
+		margin: 0 0 10px;
+		font-weight: 500;
+	}
+
+	@media (max-width: 760px) {
+		.sum-grid { grid-template-columns: 1fr; }
+		.sum-hero__grid { grid-template-columns: 1fr; }
+		.sum-hero__title { font-size: 26px; }
+		.sum-shell { padding: 22px 18px 60px; }
+	}
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if error %}
+	<div class="sum-error">
+		<h3>Couldn't load summary</h3>
+		<p>{{ error }}</p>
+		<a class="sum-back" href="/queue" style="margin-top:16px;">Back to queue</a>
+	</div>
+{% else %}
+<div class="sum-shell">
+
+	<!-- Topbar -->
+	<div class="sum-topbar">
+		<a class="sum-back" href="/queue">
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+			Back to queue
+		</a>
+		<span class="sum-eyebrow">Encounter #{{ encounter_name }}{% if practitioner_name %} · {{ practitioner_name }}{% endif %}</span>
+	</div>
+
+	<!-- Hero header + actions -->
+	<header class="sum-hero">
+		<div class="sum-hero__grid">
+			<div>
+				<div class="sum-hero__eyebrow">Visit wrap-up</div>
+				<h1 class="sum-hero__title">{{ patient_name }}</h1>
+				<div class="sum-hero__meta">
+					{% if patient_age %}<span>{{ patient_age }}</span><span class="dot">·</span>{% endif %}
+					{% if patient_sex %}<span>{{ patient_sex }}</span><span class="dot">·</span>{% endif %}
+					<span>{{ frappe.format(encounter_date, {"fieldtype": "Date"}) }}</span>
+					{% if encounter_time %}<span class="dot">·</span><span>{{ frappe.format(encounter_time, {"fieldtype": "Time"}) }}</span>{% endif %}
+				</div>
+				{% if urgency %}
+				<span class="sum-urgency sum-urgency--{{ urgency_class }}">{{ urgency }} urgency</span>
+				{% endif %}
+			</div>
+			<div class="sum-hero__actions">
+				<button type="button" class="sum-btn sum-btn--invoice" id="sum-invoice-btn">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+					Generate Invoice
+				</button>
+				<button type="button" class="sum-btn sum-btn--prescription" id="sum-prescription-btn">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2a2 2 0 0 0-2 2v5H4a2 2 0 0 0-2 2v2c0 1.1.9 2 2 2h5v5c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2v-5h5a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-5V4a2 2 0 0 0-2-2z"/></svg>
+					Generate Prescription
+				</button>
+			</div>
+		</div>
+	</header>
+
+	<!-- Chief complaint + summary -->
+	{% if chief_complaint or ai_summary %}
+	<section class="sum-panel sum-panel--mint">
+		<span class="sum-panel__label">Chief complaint &amp; summary</span>
+		<h2 class="sum-panel__title">{{ chief_complaint or "Clinical summary" }}</h2>
+		<div class="sum-panel__body">
+			{% if ai_summary %}<p>{{ ai_summary }}</p>{% else %}<p class="sum-empty">No AI summary was captured for this visit.</p>{% endif %}
+		</div>
+	</section>
+	{% endif %}
+
+	<div class="sum-grid">
+
+		<!-- Possible assessment -->
+		{% if possible_assessment %}
+		<section class="sum-panel sum-panel--lav">
+			<span class="sum-panel__label">Possible assessment</span>
+			<h2 class="sum-panel__title">What Cura thinks</h2>
+			<ul class="sum-tags">
+				{% for a in possible_assessment %}<li>{{ a }}</li>{% endfor %}
+			</ul>
+		</section>
+		{% endif %}
+
+		<!-- Red flags -->
+		{% if red_flags %}
+		<section class="sum-panel sum-panel--blush">
+			<span class="sum-panel__label">Red flags</span>
+			<h2 class="sum-panel__title">Watch for</h2>
+			<ul class="sum-bullets">
+				{% for r in red_flags %}<li>{{ r }}</li>{% endfor %}
+			</ul>
+		</section>
+		{% endif %}
+
+		<!-- Selected tests -->
+		<section class="sum-panel sum-panel--peach">
+			<span class="sum-panel__label">Lab tests ordered</span>
+			<h2 class="sum-panel__title">{{ selected_tests | length }} test{% if selected_tests | length != 1 %}s{% endif %}</h2>
+			{% if selected_tests %}
+			<ul class="sum-tags">
+				{% for t in selected_tests %}<li>{{ t }}</li>{% endfor %}
+			</ul>
+			{% else %}
+			<p class="sum-empty">No tests selected for this visit.</p>
+			{% endif %}
+		</section>
+
+		<!-- Selected medications -->
+		<section class="sum-panel sum-panel--rose">
+			<span class="sum-panel__label">Medications prescribed</span>
+			<h2 class="sum-panel__title">{{ selected_meds | length }} medication{% if selected_meds | length != 1 %}s{% endif %}</h2>
+			{% if selected_meds %}
+			<ul class="sum-tags">
+				{% for m in selected_meds %}<li>{{ m }}</li>{% endfor %}
+			</ul>
+			{% else %}
+			<p class="sum-empty">No medications prescribed.</p>
+			{% endif %}
+		</section>
+
+		<!-- Follow-ups -->
+		{% if selected_followups or all_followups %}
+		<section class="sum-panel sum-panel--sky sum-grid--full">
+			<span class="sum-panel__label">Follow-up plan</span>
+			<h2 class="sum-panel__title">Next steps &amp; questions</h2>
+			{% if selected_followups %}
+			<ul class="sum-tags">
+				{% for f in selected_followups %}<li>{{ f }}</li>{% endfor %}
+			</ul>
+			{% elif all_followups %}
+			<ul class="sum-tags">
+				{% for f in all_followups %}<li>{{ f }}</li>{% endfor %}
+			</ul>
+			{% endif %}
+		</section>
+		{% endif %}
+
+		<!-- Doctor's notes -->
+		{% if doctor_notes %}
+		<section class="sum-panel sum-panel--butter sum-grid--full">
+			<span class="sum-panel__label">Doctor's notes</span>
+			<h2 class="sum-panel__title">Your observations</h2>
+			<div class="sum-notes">{{ doctor_notes }}</div>
+		</section>
+		{% endif %}
+
+		<!-- Transcript -->
+		<section class="sum-panel sum-grid--full" style="border-left: 4px solid var(--ink-300);">
+			<span class="sum-panel__label" style="color: var(--ink-500);">Conversation transcript</span>
+			<h2 class="sum-panel__title">What was said</h2>
+
+			{% if utterances %}
+			<div class="sum-transcript">
+				{% for u in utterances %}
+					{% set role = "doctor" if u.speaker == "doctor" else "patient" %}
+					<div class="sum-bubble sum-bubble--{{ role }}">
+						<div class="sum-bubble__who">{{ "Doctor" if role == "doctor" else "Patient" }}</div>
+						<div>{{ u.text }}</div>
+					</div>
+				{% endfor %}
+			</div>
+			{% elif transcript_en or transcript_es %}
+			<div class="sum-tabs" role="tablist">
+				{% if transcript_en %}<button type="button" class="sum-tab is-active" data-lang="en">English</button>{% endif %}
+				{% if transcript_es %}<button type="button" class="sum-tab {% if not transcript_en %}is-active{% endif %}" data-lang="es">Español</button>{% endif %}
+			</div>
+			{% if transcript_en %}
+			<div class="sum-transcript-fallback" data-lang-body="en">{{ transcript_en }}</div>
+			{% endif %}
+			{% if transcript_es %}
+			<div class="sum-transcript-fallback" data-lang-body="es" {% if transcript_en %}style="display:none;"{% endif %}>{{ transcript_es }}</div>
+			{% endif %}
+			{% else %}
+			<p class="sum-empty">No transcript captured for this visit.</p>
+			{% endif %}
+		</section>
+
+	</div>
+</div>
+
+<script>
+(function () {
+	const ENCOUNTER = {{ encounter_name | tojson }};
+	const CSRF = (window.frappe && frappe.csrf_token) || "";
+
+	function post(url, body) {
+		return fetch(url, {
+			method: "POST",
+			credentials: "include",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+				"X-Frappe-CSRF-Token": CSRF,
+			},
+			body: body || "",
+		}).then(r => r.json());
+	}
+
+	const invoiceBtn = document.getElementById("sum-invoice-btn");
+	const prescBtn   = document.getElementById("sum-prescription-btn");
+
+	async function runAction(btn, endpoint, successLabel) {
+		const orig = btn.innerHTML;
+		btn.disabled = true;
+		btn.innerHTML = "<span>" + successLabel + "…</span>";
+		try {
+			const body = "encounter=" + encodeURIComponent(ENCOUNTER);
+			const json = await post("/api/method/" + endpoint, body);
+			const p = json.message || json;
+			if (!p || !p.ok) throw new Error((p && (p.exc || p._server_messages)) || "Failed");
+			if (p.skipped_tests && p.skipped_tests.length) {
+				alert("Note: these tests need to be added manually (no Lab Test Template found):\n• " + p.skipped_tests.join("\n• "));
+			}
+			if (p.redirect) {
+				window.location.href = p.redirect;
+				return;
+			}
+			btn.innerHTML = orig;
+			btn.disabled = false;
+		} catch (err) {
+			console.error(err);
+			alert("Couldn't complete: " + (err.message || err));
+			btn.innerHTML = orig;
+			btn.disabled = false;
+		}
+	}
+
+	invoiceBtn.addEventListener("click", () =>
+		runAction(invoiceBtn, "remedisys.api.billing.create_invoice_from_encounter", "Preparing invoice")
+	);
+	prescBtn.addEventListener("click", () =>
+		runAction(prescBtn, "remedisys.api.billing.create_prescription_from_encounter", "Preparing prescription")
+	);
+
+	// Transcript tabs (when we fell back to plain-text)
+	document.querySelectorAll(".sum-tab").forEach(btn => {
+		btn.addEventListener("click", () => {
+			const lang = btn.dataset.lang;
+			document.querySelectorAll(".sum-tab").forEach(b => b.classList.toggle("is-active", b === btn));
+			document.querySelectorAll("[data-lang-body]").forEach(body => {
+				body.style.display = body.dataset.langBody === lang ? "" : "none";
+			});
+		});
+	});
+})();
+</script>
+{% endif %}
+{% endblock %}

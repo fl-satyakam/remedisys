@@ -1,0 +1,120 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Admin · Errors{% endblock %}
+
+{% block head_include %}
+<style>
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+	body { background: #f4f5f7; margin: 0; }
+
+	.adm-topbar {
+		position: sticky; top: 0; z-index: 10;
+		background: #ffffff; border-bottom: 1px solid #e5e7eb;
+		padding: 10px 24px; height: 56px;
+		display: flex; align-items: center; justify-content: space-between;
+	}
+	.adm-topbar__title { font-size: 14px; font-weight: 600; color: #0f172a; }
+	.adm-topbar__right a { color: #2563eb; text-decoration: none; font-size: 12px; }
+
+	.adm-page { max-width: 1200px; margin: 0 auto; padding: 24px 24px 64px; }
+	.adm-h1 { font-size: 22px; font-weight: 600; color: #0f172a; margin: 0 0 4px; }
+	.adm-subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+
+	.adm-row {
+		background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px;
+		padding: 12px 14px; margin-bottom: 10px;
+	}
+	.adm-row__head {
+		display: flex; justify-content: space-between; align-items: center;
+		margin-bottom: 6px; font-size: 12px; color: #475569;
+	}
+	.adm-row__method { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #1e293b; }
+	.adm-row__actions { display: flex; gap: 6px; }
+	.adm-row__btn {
+		height: 26px; padding: 0 10px; font-size: 11px; border-radius: 5px;
+		border: 1px solid #cbd5e1; background: #ffffff; color: #475569;
+		cursor: pointer;
+	}
+	.adm-row__btn:hover { background: #f1f5f9; }
+	.adm-row__btn--danger { color: #b91c1c; border-color: #fecaca; }
+	.adm-row__btn--danger:hover { background: #fef2f2; }
+	.adm-row pre {
+		margin: 0; font-size: 11px; line-height: 1.5;
+		color: #475569;
+		white-space: pre-wrap; word-break: break-word;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		max-height: 160px; overflow: auto;
+	}
+	.adm-empty { color: #94a3b8; font-style: italic; padding: 24px; text-align: center; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if forbidden %}
+<div style="max-width:520px;margin:120px auto;background:#fff;border:1px solid #fecaca;border-radius:10px;padding:32px;text-align:center">
+	<h1 style="font-size:18px;color:#991b1b;margin:0 0 8px">403 — Admin access required</h1>
+</div>
+{% else %}
+<div class="adm-topbar">
+	<div class="adm-topbar__title">Admin · Errors</div>
+	<div class="adm-topbar__right"><a href="/admin">Back</a></div>
+</div>
+
+<div class="adm-page">
+	<h1 class="adm-h1">Error Log</h1>
+	<div class="adm-subtitle">Last 50 Frappe Error Log entries mentioning <code>medical_agent</code>.</div>
+
+	{% if rows %}
+	{% for r in rows %}
+	<div class="adm-row" data-name="{{ r.name }}">
+		<div class="adm-row__head">
+			<div>
+				<span>{{ r.creation }}</span>
+				<span style="margin:0 8px;color:#cbd5e1">·</span>
+				<span class="adm-row__method">{{ r.method or '—' }}</span>
+			</div>
+			<div class="adm-row__actions">
+				<a class="adm-row__btn" href="/app/error-log/{{ r.name }}" target="_blank">Open</a>
+				<button class="adm-row__btn adm-row__btn--danger" type="button" data-delete="{{ r.name }}">Delete</button>
+			</div>
+		</div>
+		<pre>{{ (r.error or '') | truncate(1200) }}</pre>
+	</div>
+	{% endfor %}
+	{% else %}
+	<div class="adm-empty">No medical_agent errors in the last log window.</div>
+	{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+	document.querySelectorAll("[data-delete]").forEach(function (btn) {
+		btn.addEventListener("click", async function () {
+			const name = btn.getAttribute("data-delete");
+			if (!name) return;
+			if (!confirm("Delete Error Log " + name + "?")) return;
+			btn.disabled = true;
+			try {
+				const form = new FormData();
+				form.append("name", name);
+				const resp = await fetch(
+					"/api/method/remedisys.api.admin.delete_error_log",
+					{ method: "POST", body: form, headers: { "X-Frappe-CSRF-Token": window.frappe && frappe.csrf_token || "" } }
+				);
+				if (!resp.ok) throw new Error("HTTP " + resp.status);
+				const row = btn.closest(".adm-row");
+				if (row) row.remove();
+			} catch (e) {
+				alert("Delete failed: " + e.message);
+				btn.disabled = false;
+			}
+		});
+	});
+})();
+</script>
+{% endblock %}

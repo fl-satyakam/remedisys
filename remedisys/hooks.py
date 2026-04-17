@@ -8,7 +8,7 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["erpnext", "healthcare"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -26,7 +26,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 app_include_css = "/assets/remedisys/css/medical_agent.css"
-# app_include_js = "/assets/remedisys/js/remedisys.js"
+app_include_js = "/assets/remedisys/js/breadcrumbs.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/remedisys/css/remedisys.css"
@@ -88,6 +88,20 @@ doctype_js = {"Patient Encounter" : "public/js/patient_encounter.js"}
 # before_install = "remedisys.install.before_install"
 after_install = "remedisys.setup.after_install"
 after_migrate = "remedisys.setup.after_migrate"
+
+# Session landing — role-based redirect after login
+on_session_creation = ["remedisys.session_hooks.on_session_creation"]
+role_home_page = {
+	"Physician": "queue",
+	"Nursing User": "queue",
+}
+
+# Root URL redirect: `/` -> `/queue` (doctor's daily patient list).
+# Guests hitting /queue are auto-bounced to /login?redirect-to=/queue by the
+# page's own auth gate, so a single rule covers both auth states.
+website_redirects = [
+	{"source": "/", "target": "/queue", "redirect_http_status": 302},
+]
 
 # Uninstallation
 # ------------

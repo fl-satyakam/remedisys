@@ -1,0 +1,901 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Patients — {{ selected_date_human }}{% endblock %}
+
+{% block head_include %}
+<style>
+	/* Minimalist view: hide Frappe website chrome entirely. */
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; }
+	body { background: #f7f8fa; }
+	.queue-page { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
+	.queue-page__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 24px;
+	}
+	.queue-page__title-block h1 {
+		font-size: 22px;
+		font-weight: 600;
+		margin: 0 0 2px;
+		color: #0f172a;
+	}
+	.queue-page__subtitle {
+		font-size: 12px;
+		color: #64748b;
+	}
+	.queue-page__date-nav {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		background: #ffffff;
+		border: 1px solid #e2e8f0;
+		border-radius: 10px;
+		padding: 4px;
+	}
+	.queue-page__date-btn {
+		height: 36px;
+		min-width: 36px;
+		padding: 0 10px;
+		border-radius: 7px;
+		border: none;
+		background: transparent;
+		color: #334155;
+		font-size: 14px;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.queue-page__date-btn:hover { background: #f1f5f9; }
+	.queue-page__date-btn--today {
+		font-size: 12px;
+		font-weight: 600;
+		color: #2563eb;
+		padding: 0 12px;
+	}
+	.queue-page__date-input {
+		height: 36px;
+		border: none;
+		background: transparent;
+		font-size: 14px;
+		padding: 0 6px;
+		color: #0f172a;
+		font-family: inherit;
+		cursor: pointer;
+	}
+	.queue-page__date-input:focus { outline: 1px solid #2563eb; border-radius: 6px; }
+
+	.queue-section { margin-top: 28px; }
+	.queue-section__head {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		margin: 0 0 12px;
+	}
+	.queue-section__title {
+		font-size: 13px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.6px;
+		color: #475569;
+	}
+	.queue-section__count {
+		font-size: 12px;
+		color: #94a3b8;
+	}
+
+	.queue-table {
+		width: 100%;
+		background: #ffffff;
+		border: 1px solid #e8e8e8;
+		border-radius: 10px;
+		overflow: hidden;
+		border-collapse: collapse;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+	}
+	.queue-table th {
+		text-align: left;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		color: #64748b;
+		font-weight: 600;
+		padding: 12px 14px;
+		border-bottom: 1px solid #e8e8e8;
+		background: #fafbfc;
+	}
+	.queue-table td {
+		padding: 14px;
+		border-bottom: 1px solid #eef1f4;
+		vertical-align: top;
+		font-size: 13px;
+		color: #1e293b;
+	}
+	.queue-table tr:last-child td { border-bottom: none; }
+	.queue-table tr:hover td { background: #fafbfc; }
+	.queue-table__empty {
+		padding: 28px 14px;
+		text-align: center;
+		font-style: italic;
+		color: #b0b8c4;
+		font-size: 13px;
+	}
+
+	.patient-cell__name { font-weight: 600; color: #0f172a; }
+	.patient-cell__meta {
+		font-size: 11px;
+		color: #94a3b8;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-top: 2px;
+	}
+
+	.chip {
+		display: inline-block;
+		padding: 2px 8px;
+		border-radius: 999px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.3px;
+	}
+	.chip--new { background: #eff6ff; color: #1d4ed8; }
+	.chip--old { background: #f1f5f9; color: #475569; }
+	.chip__sub {
+		display: block;
+		font-size: 10px;
+		color: #94a3b8;
+		font-weight: 400;
+		margin-top: 3px;
+		letter-spacing: 0;
+	}
+
+	.chip--walkin { background: #fff7ed; color: #c2410c; }
+	.chip--appointment { background: #ecfdf5; color: #047857; }
+
+	.queue-table__problem {
+		max-width: 280px;
+		color: #475569;
+		line-height: 1.45;
+	}
+	.queue-table__problem--empty {
+		color: #cbd5e1;
+		font-style: italic;
+	}
+
+	.queue-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		height: 34px;
+		padding: 0 14px;
+		border-radius: 7px;
+		border: 1px solid transparent;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+		text-decoration: none;
+		transition: transform 0.1s ease, background 0.1s ease;
+		white-space: nowrap;
+	}
+	.queue-btn:active { transform: scale(0.98); }
+	.queue-btn--primary { background: #2563eb; color: #ffffff !important; }
+	.queue-btn--primary:hover { background: #1d4ed8; color: #ffffff !important; }
+	.queue-btn--ghost {
+		background: #ffffff;
+		color: #1e293b !important;
+		border-color: #d8dee6;
+	}
+	.queue-btn--ghost:hover { background: #f1f5f9; color: #1e293b !important; }
+	.queue-btn--icon {
+		width: 34px;
+		padding: 0;
+		background: #ffffff;
+		color: #475569 !important;
+		border-color: #e2e8f0;
+	}
+	.queue-btn--icon:hover { background: #f1f5f9; }
+	.queue-btn--icon:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.queue-actions {
+		display: flex;
+		gap: 6px;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+
+	.queue-empty-state {
+		background: #ffffff;
+		border: 1px dashed #e2e8f0;
+		border-radius: 10px;
+		padding: 48px 24px;
+		text-align: center;
+	}
+	.queue-empty-state__title {
+		font-size: 15px;
+		font-weight: 600;
+		color: #334155;
+		margin-bottom: 4px;
+	}
+	.queue-empty-state__body { font-size: 13px; color: #94a3b8; }
+
+	.queue-warning {
+		background: #fff7ed;
+		border: 1px solid #fed7aa;
+		border-radius: 10px;
+		padding: 14px 16px;
+		font-size: 13px;
+		color: #9a3412;
+		margin-bottom: 20px;
+	}
+
+	/* --- Add Patient modal (namespaced to avoid Bootstrap .modal collision) --- */
+	.qmodal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(15, 23, 42, 0.45);
+		display: none;
+		align-items: flex-start;
+		justify-content: center;
+		padding: 48px 16px;
+		z-index: 1000;
+	}
+	.qmodal-backdrop.is-open { display: flex; }
+	.qmodal {
+		background: #ffffff;
+		width: 100%;
+		max-width: 520px;
+		border-radius: 12px;
+		box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+		overflow: hidden;
+		animation: qmodalIn 0.14s ease-out;
+	}
+	@keyframes qmodalIn {
+		from { transform: translateY(-8px); opacity: 0; }
+		to   { transform: translateY(0); opacity: 1; }
+	}
+	.qmodal__head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 20px;
+		border-bottom: 1px solid #eef1f4;
+	}
+	.qmodal__title { font-size: 15px; font-weight: 600; color: #0f172a; }
+	.qmodal__close {
+		background: transparent;
+		border: none;
+		font-size: 20px;
+		color: #94a3b8;
+		cursor: pointer;
+		line-height: 1;
+		padding: 4px 8px;
+	}
+	.qmodal__close:hover { color: #334155; }
+	.qmodal__body { padding: 20px; }
+	.qmodal__foot {
+		display: flex;
+		gap: 8px;
+		justify-content: flex-end;
+		padding: 14px 20px;
+		border-top: 1px solid #eef1f4;
+		background: #fafbfc;
+	}
+	.qmodal__error {
+		display: none;
+		background: #fef2f2;
+		border: 1px solid #fecaca;
+		color: #991b1b;
+		font-size: 12px;
+		padding: 8px 12px;
+		border-radius: 8px;
+		margin-bottom: 12px;
+	}
+	.qmodal__error.is-shown { display: block; }
+
+	.seg {
+		display: inline-flex;
+		background: #f1f5f9;
+		padding: 3px;
+		border-radius: 9px;
+		margin-bottom: 16px;
+	}
+	.seg__btn {
+		padding: 7px 16px;
+		border: none;
+		background: transparent;
+		border-radius: 7px;
+		font-size: 13px;
+		font-weight: 500;
+		color: #64748b;
+		cursor: pointer;
+	}
+	.seg__btn.is-active {
+		background: #ffffff;
+		color: #0f172a;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+		font-weight: 600;
+	}
+
+	.form-row {
+		display: flex;
+		gap: 10px;
+		margin-bottom: 12px;
+	}
+	.form-row > .form-field { flex: 1; margin-bottom: 0; }
+	.form-field { margin-bottom: 12px; }
+	.form-field:last-child { margin-bottom: 0; }
+	.form-field__label {
+		display: block;
+		font-size: 11px;
+		font-weight: 600;
+		color: #475569;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+		margin-bottom: 5px;
+	}
+	.form-field__input,
+	.form-field__select,
+	.form-field__textarea {
+		width: 100%;
+		height: 38px;
+		padding: 0 12px;
+		border: 1px solid #d8dee6;
+		border-radius: 7px;
+		font-size: 13px;
+		color: #0f172a;
+		font-family: inherit;
+		background: #ffffff;
+		box-sizing: border-box;
+	}
+	.form-field__textarea {
+		height: auto;
+		min-height: 60px;
+		padding: 10px 12px;
+		resize: vertical;
+	}
+	.form-field__input:focus,
+	.form-field__select:focus,
+	.form-field__textarea:focus {
+		outline: none;
+		border-color: #2563eb;
+		box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+	}
+	.form-field__hint {
+		font-size: 11px;
+		color: #94a3b8;
+		margin-top: 4px;
+	}
+
+	.search-results {
+		margin-top: 8px;
+		border: 1px solid #e2e8f0;
+		border-radius: 8px;
+		max-height: 220px;
+		overflow-y: auto;
+		display: none;
+	}
+	.search-results.is-shown { display: block; }
+	.search-result {
+		padding: 10px 12px;
+		cursor: pointer;
+		border-bottom: 1px solid #eef1f4;
+		font-size: 13px;
+	}
+	.search-result:last-child { border-bottom: none; }
+	.search-result:hover,
+	.search-result.is-selected { background: #eff6ff; }
+	.search-result__name { font-weight: 600; color: #0f172a; }
+	.search-result__meta {
+		font-size: 11px;
+		color: #94a3b8;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-top: 2px;
+	}
+	.search-result__empty {
+		padding: 16px;
+		text-align: center;
+		color: #94a3b8;
+		font-size: 12px;
+		font-style: italic;
+	}
+
+	.picked-patient {
+		background: #f1f5f9;
+		border: 1px solid #e2e8f0;
+		border-radius: 8px;
+		padding: 10px 12px;
+		display: none;
+		align-items: center;
+		justify-content: space-between;
+		font-size: 13px;
+		margin-top: 8px;
+	}
+	.picked-patient.is-shown { display: flex; }
+	.picked-patient__clear {
+		background: transparent;
+		border: none;
+		color: #64748b;
+		cursor: pointer;
+		font-size: 16px;
+		line-height: 1;
+	}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="queue-page">
+	<header class="queue-page__header">
+		<div class="queue-page__title-block">
+			<h1>Patients</h1>
+			<div class="queue-page__subtitle">
+				{% if not no_practitioner %}
+					{{ practitioner_name }} · {{ selected_date_human }}
+				{% else %}
+					{{ selected_date_human }}
+				{% endif %}
+			</div>
+		</div>
+		<div style="display:flex;align-items:center;gap:10px">
+			<button class="queue-btn queue-btn--primary" id="queue-add-btn"
+				style="height:36px;font-size:12px"
+				title="Add a patient to today's queue">
+				+ Add Patient
+			</button>
+		<nav class="queue-page__date-nav" aria-label="Date navigation">
+			<a class="queue-page__date-btn" href="/queue?d={{ prev_date_iso }}"
+				aria-label="Previous day">&#8592;</a>
+			<input type="date" class="queue-page__date-input"
+				value="{{ selected_date_iso }}"
+				onchange="window.location.href='/queue?d='+this.value" />
+			<a class="queue-page__date-btn" href="/queue?d={{ next_date_iso }}"
+				aria-label="Next day">&#8594;</a>
+			{% if not is_today %}
+				<a class="queue-page__date-btn queue-page__date-btn--today" href="/queue">Today</a>
+			{% endif %}
+		</nav>
+		</div>
+	</header>
+	<div class="qmodal-backdrop" id="add-patient-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+		<div class="qmodal" id="add-patient-modal">
+			<div class="qmodal__head">
+				<div class="qmodal__title">Add Patient</div>
+				<button type="button" class="qmodal__close" data-close>&times;</button>
+			</div>
+			<div class="qmodal__body">
+				<div class="qmodal__error" id="add-patient-error"></div>
+
+				<div class="seg" role="tablist">
+					<button type="button" class="seg__btn is-active" data-mode="old" role="tab">Existing</button>
+					<button type="button" class="seg__btn" data-mode="new" role="tab">New</button>
+				</div>
+
+				<!-- OLD / existing patient search -->
+				<div id="mode-old-pane">
+					<div class="form-field">
+						<label class="form-field__label" for="patient-search">Search by name, ID, or phone</label>
+						<input type="text" id="patient-search" class="form-field__input"
+							autocomplete="off" placeholder="Start typing…" />
+						<div class="search-results" id="search-results"></div>
+						<div class="picked-patient" id="picked-patient">
+							<div>
+								<div class="search-result__name" id="picked-name"></div>
+								<div class="search-result__meta" id="picked-meta"></div>
+							</div>
+							<button type="button" class="picked-patient__clear" id="picked-clear" aria-label="Clear">&times;</button>
+						</div>
+					</div>
+					<div class="form-field">
+						<label class="form-field__label" for="old-complaint">Reason for visit</label>
+						<textarea id="old-complaint" class="form-field__textarea"
+							placeholder="Short description of today's complaint"></textarea>
+					</div>
+				</div>
+
+				<!-- NEW patient form -->
+				<div id="mode-new-pane" style="display:none">
+					<div class="form-row">
+						<div class="form-field">
+							<label class="form-field__label" for="new-first">First name</label>
+							<input type="text" id="new-first" class="form-field__input" autocomplete="off" />
+						</div>
+						<div class="form-field">
+							<label class="form-field__label" for="new-last">Last name</label>
+							<input type="text" id="new-last" class="form-field__input" autocomplete="off" />
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-field">
+							<label class="form-field__label" for="new-age">Age</label>
+							<input type="number" id="new-age" min="0" max="120" class="form-field__input" />
+						</div>
+						<div class="form-field">
+							<label class="form-field__label" for="new-sex">Gender</label>
+							<select id="new-sex" class="form-field__select">
+								<option value="Male">Male</option>
+								<option value="Female">Female</option>
+								<option value="Other">Other</option>
+							</select>
+						</div>
+					</div>
+					<div class="form-field">
+						<label class="form-field__label" for="new-mobile">Phone</label>
+						<input type="tel" id="new-mobile" class="form-field__input" autocomplete="off" />
+					</div>
+					<div class="form-field">
+						<label class="form-field__label" for="new-complaint">Reason for visit</label>
+						<textarea id="new-complaint" class="form-field__textarea"
+							placeholder="Short description of today's complaint"></textarea>
+					</div>
+					<div class="form-row">
+						<div class="form-field">
+							<label class="form-field__label">Patient ID</label>
+							<input type="text" class="form-field__input" value="Auto-generated on save" disabled />
+						</div>
+						<div class="form-field">
+							<label class="form-field__label" for="new-checkin">Check-in date</label>
+							<input type="date" id="new-checkin" class="form-field__input"
+								value="{{ selected_date_iso }}" />
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="qmodal__foot">
+				<button type="button" class="queue-btn queue-btn--ghost" data-close>Cancel</button>
+				<button type="button" class="queue-btn queue-btn--primary" id="add-patient-submit">Add to queue</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	(function () {
+		const openBtn     = document.getElementById("queue-add-btn");
+		const backdrop    = document.getElementById("add-patient-backdrop");
+		const submitBtn   = document.getElementById("add-patient-submit");
+		const errorBox    = document.getElementById("add-patient-error");
+		const segBtns     = backdrop.querySelectorAll(".seg__btn");
+		const oldPane     = document.getElementById("mode-old-pane");
+		const newPane     = document.getElementById("mode-new-pane");
+		const searchInput = document.getElementById("patient-search");
+		const resultsBox  = document.getElementById("search-results");
+		const pickedBox   = document.getElementById("picked-patient");
+		const pickedName  = document.getElementById("picked-name");
+		const pickedMeta  = document.getElementById("picked-meta");
+		const pickedClear = document.getElementById("picked-clear");
+
+		let mode = "old";
+		let pickedPatient = null;
+		let searchTimer = null;
+
+		const SELECTED_DATE = "{{ selected_date_iso }}";
+		const CSRF = (window.frappe && frappe.csrf_token) || "";
+
+		function openModal() {
+			backdrop.classList.add("is-open");
+			backdrop.setAttribute("aria-hidden", "false");
+			errorBox.classList.remove("is-shown");
+			errorBox.textContent = "";
+			setTimeout(() => searchInput.focus(), 80);
+		}
+		function closeModal() {
+			backdrop.classList.remove("is-open");
+			backdrop.setAttribute("aria-hidden", "true");
+		}
+		function setMode(next) {
+			mode = next;
+			segBtns.forEach(b => b.classList.toggle("is-active", b.dataset.mode === next));
+			oldPane.style.display = next === "old" ? "" : "none";
+			newPane.style.display = next === "new" ? "" : "none";
+		}
+		function showError(msg) {
+			errorBox.textContent = msg || "Something went wrong.";
+			errorBox.classList.add("is-shown");
+		}
+		function clearPicked() {
+			pickedPatient = null;
+			pickedBox.classList.remove("is-shown");
+			searchInput.value = "";
+			searchInput.style.display = "";
+			resultsBox.classList.remove("is-shown");
+			resultsBox.innerHTML = "";
+		}
+		function pick(row) {
+			pickedPatient = row;
+			pickedName.textContent = row.patient_name || row.name;
+			const bits = [row.name];
+			if (row.mobile) bits.push(row.mobile);
+			if (row.sex)    bits.push(row.sex);
+			pickedMeta.textContent = bits.join(" · ");
+			pickedBox.classList.add("is-shown");
+			searchInput.style.display = "none";
+			resultsBox.classList.remove("is-shown");
+		}
+		async function runSearch(q) {
+			if (!q || q.length < 2) {
+				resultsBox.classList.remove("is-shown");
+				return;
+			}
+			try {
+				const url = "/api/method/remedisys.api.patient_intake.search_patients?q="
+					+ encodeURIComponent(q);
+				const res = await fetch(url, { credentials: "same-origin" });
+				if (!res.ok) throw new Error("HTTP " + res.status);
+				const data = await res.json();
+				const rows = (data && data.message) || [];
+				renderResults(rows);
+			} catch (err) {
+				console.error(err);
+			}
+		}
+		function renderResults(rows) {
+			resultsBox.innerHTML = "";
+			if (!rows.length) {
+				const empty = document.createElement("div");
+				empty.className = "search-result__empty";
+				empty.textContent = "No matches";
+				resultsBox.appendChild(empty);
+			} else {
+				rows.forEach(r => {
+					const item = document.createElement("div");
+					item.className = "search-result";
+					const meta = [r.name];
+					if (r.mobile) meta.push(r.mobile);
+					if (r.sex)    meta.push(r.sex);
+					item.innerHTML =
+						'<div class="search-result__name"></div>' +
+						'<div class="search-result__meta"></div>';
+					item.querySelector(".search-result__name").textContent = r.patient_name || r.name;
+					item.querySelector(".search-result__meta").textContent = meta.join(" · ");
+					item.addEventListener("click", () => pick(r));
+					resultsBox.appendChild(item);
+				});
+			}
+			resultsBox.classList.add("is-shown");
+		}
+
+		async function submit() {
+			errorBox.classList.remove("is-shown");
+			const body = new URLSearchParams();
+			if (mode === "old") {
+				if (!pickedPatient) return showError("Pick an existing patient first.");
+				body.set("mode", "old");
+				body.set("patient", pickedPatient.name);
+				body.set("date_iso", SELECTED_DATE);
+				body.set("complaint", document.getElementById("old-complaint").value || "");
+			} else {
+				const first = document.getElementById("new-first").value.trim();
+				if (!first) return showError("First name is required.");
+				body.set("mode", "new");
+				body.set("first_name", first);
+				body.set("last_name",  document.getElementById("new-last").value.trim());
+				body.set("age",        document.getElementById("new-age").value);
+				body.set("sex",        document.getElementById("new-sex").value);
+				body.set("mobile",     document.getElementById("new-mobile").value.trim());
+				body.set("complaint",  document.getElementById("new-complaint").value.trim());
+				body.set("date_iso",   document.getElementById("new-checkin").value || SELECTED_DATE);
+			}
+
+			submitBtn.disabled = true;
+			const orig = submitBtn.textContent;
+			submitBtn.textContent = "Adding…";
+			try {
+				const res = await fetch("/api/method/remedisys.api.patient_intake.add_patient", {
+					method: "POST",
+					credentials: "same-origin",
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded",
+						"X-Frappe-CSRF-Token": CSRF,
+					},
+					body: body.toString(),
+				});
+				const payload = await res.json().catch(() => ({}));
+				if (!res.ok) {
+					const msg = (payload && (payload._server_messages || payload.exception || payload.message))
+						|| ("Request failed (HTTP " + res.status + ")");
+					throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+				}
+				const targetDate = (mode === "new")
+					? (document.getElementById("new-checkin").value || SELECTED_DATE)
+					: SELECTED_DATE;
+				window.location.href = "/queue?d=" + encodeURIComponent(targetDate);
+			} catch (err) {
+				console.error(err);
+				showError(parseFrappeError(err.message));
+				submitBtn.disabled = false;
+				submitBtn.textContent = orig;
+			}
+		}
+		function parseFrappeError(raw) {
+			if (!raw) return "Something went wrong.";
+			try {
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed) && parsed.length) {
+					const first = JSON.parse(parsed[0]);
+					if (first && first.message) return first.message;
+				}
+			} catch (e) { /* not JSON */ }
+			return raw.replace(/<[^>]+>/g, "").slice(0, 300);
+		}
+
+		openBtn.addEventListener("click", openModal);
+		backdrop.addEventListener("click", (e) => {
+			if (e.target === backdrop || e.target.matches("[data-close]")) closeModal();
+		});
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "Escape" && backdrop.classList.contains("is-open")) closeModal();
+		});
+		segBtns.forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+		searchInput.addEventListener("input", (e) => {
+			clearTimeout(searchTimer);
+			const q = e.target.value.trim();
+			searchTimer = setTimeout(() => runSearch(q), 180);
+		});
+		pickedClear.addEventListener("click", clearPicked);
+		submitBtn.addEventListener("click", submit);
+	})();
+	</script>
+
+	{% if no_practitioner %}
+	<div class="queue-warning">
+		No active Healthcare Practitioner is linked to your user account. Ask an
+		admin to create one with <code>user_id = {{ frappe.session.user }}</code>.
+	</div>
+	{% endif %}
+
+	<section class="queue-section">
+		<div class="queue-section__head">
+			<span class="queue-section__title">Pending</span>
+			<span class="queue-section__count">{{ pending|length }}</span>
+		</div>
+		{% if pending %}
+		<table class="queue-table">
+			<thead>
+				<tr>
+					<th>Patient</th>
+					<th>Status</th>
+					<th>Problem</th>
+					<th>Type</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for row in pending %}
+				<tr>
+					<td>
+						<div class="patient-cell__name">{{ row.patient_name or row.patient }}</div>
+						<div class="patient-cell__meta">
+							{{ row.patient }}
+							{%- if row.time_label %} · {{ row.time_label }}{% endif -%}
+							{%- if row.patient_age %} · {{ row.patient_age }}{% endif -%}
+						</div>
+					</td>
+					<td>
+						{% if row.is_new %}
+							<span class="chip chip--new">NEW</span>
+						{% else %}
+							<span class="chip chip--old">RETURNING
+								{% if row.last_visit %}
+									<span class="chip__sub">Last visit {{ row.last_visit }}</span>
+								{% endif %}
+							</span>
+						{% endif %}
+					</td>
+					<td class="queue-table__problem {% if not row.notes %}queue-table__problem--empty{% endif %}">
+						{{ row.notes or "—" }}
+					</td>
+					<td>
+						{% if row.walk_in %}
+							<span class="chip chip--walkin">Walk-in</span>
+						{% else %}
+							<span class="chip chip--appointment">Appointment</span>
+						{% endif %}
+					</td>
+					<td>
+						<div class="queue-actions">
+							<a class="queue-btn queue-btn--primary" href="/encounter?a={{ row.name }}">
+							{% if row.encounter %}Resume{% else %}Start consultation{% endif %}
+						</a>
+						</div>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<div class="queue-empty-state">
+			<div class="queue-empty-state__title">All clear</div>
+			<div class="queue-empty-state__body">No pending patients for this date.</div>
+		</div>
+		{% endif %}
+	</section>
+
+	<section class="queue-section">
+		<div class="queue-section__head">
+			<span class="queue-section__title">Completed</span>
+			<span class="queue-section__count">{{ completed|length }}</span>
+		</div>
+		{% if completed %}
+		<table class="queue-table">
+			<thead>
+				<tr>
+					<th>Patient</th>
+					<th>Status</th>
+					<th>Problem</th>
+					<th>Type</th>
+					<th>Next visit</th>
+					<th>Rx</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for row in completed %}
+				<tr>
+					<td>
+						<div class="patient-cell__name">{{ row.patient_name or row.patient }}</div>
+						<div class="patient-cell__meta">
+							{{ row.patient }}
+							{%- if row.time_label %} · {{ row.time_label }}{% endif -%}
+						</div>
+					</td>
+					<td>
+						{% if row.is_new %}
+							<span class="chip chip--new">NEW</span>
+						{% else %}
+							<span class="chip chip--old">RETURNING
+								{% if row.last_visit %}
+									<span class="chip__sub">Last visit {{ row.last_visit }}</span>
+								{% endif %}
+							</span>
+						{% endif %}
+					</td>
+					<td class="queue-table__problem {% if not row.notes %}queue-table__problem--empty{% endif %}">
+						{{ row.notes or "—" }}
+					</td>
+					<td>
+						{% if row.walk_in %}
+							<span class="chip chip--walkin">Walk-in</span>
+						{% else %}
+							<span class="chip chip--appointment">Appointment</span>
+						{% endif %}
+					</td>
+					<td>{{ row.next_visit or "—" }}</td>
+					<td>
+						{% if row.encounter %}
+							<a class="queue-btn queue-btn--icon" title="View prescription"
+								href="/app/patient-encounter/{{ row.encounter }}">&#128203;</a>
+						{% else %}
+							<span style="color:#cbd5e1">—</span>
+						{% endif %}
+					</td>
+					<td>
+						<div class="queue-actions">
+							<a class="queue-btn queue-btn--ghost" href="/patient-360?p={{ row.patient|urlencode }}">
+								Patient 360
+							</a>
+							{% if row.ref_sales_invoice %}
+							<a class="queue-btn queue-btn--ghost" href="/app/sales-invoice/{{ row.ref_sales_invoice }}">
+								Invoice
+							</a>
+							{% else %}
+							<button class="queue-btn queue-btn--icon" disabled title="No invoice yet">—</button>
+							{% endif %}
+						</div>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<div class="queue-empty-state">
+			<div class="queue-empty-state__title">Nothing completed yet</div>
+			<div class="queue-empty-state__body">Finish a consultation and it'll show up here.</div>
+		</div>
+		{% endif %}
+	</section>
+</div>
+{% endblock %}

@@ -1,0 +1,772 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}{{ patient_name or "Patient" }} · 360{% endblock %}
+
+{% block head_include %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+	:root {
+		--cream-50:  #fbfaf6;  --cream-100: #f5f2ea;
+		--ink-900: #1d2330;    --ink-700: #384152;   --ink-500: #6b7280;
+		--ink-400: #9199a6;    --ink-300: #c5cad3;   --ink-200: #e2e5eb;   --ink-100: #ecedf0;
+
+		--mint-bg: #e9f5ee;    --mint-brd: #b9e0cb;   --mint-ink: #0f5c3a;
+		--lav-bg: #efeafc;     --lav-brd: #d6cbf4;    --lav-ink: #4c359b;
+		--peach-bg: #ffeee0;   --peach-brd: #f9cda2;  --peach-ink: #9b4821;
+		--rose-bg: #ffe7ec;    --rose-brd: #f7bdc9;   --rose-ink: #9b2344;
+		--sky-bg: #e1f0fb;     --sky-brd: #b7d5ec;    --sky-ink: #18527e;
+		--blush-bg: #fde4e4;   --blush-brd: #f2b5b5;  --blush-ink: #8b2525;
+		--butter-bg: #fff6d9;  --butter-brd: #edd79a; --butter-ink: #6a4e0d;
+
+		--font-body:    'Manrope', system-ui, -apple-system, sans-serif;
+		--font-display: 'Fraunces', Georgia, serif;
+		--shadow-soft: 0 1px 2px rgba(29,35,48,.04), 0 4px 14px -8px rgba(29,35,48,.08);
+		--shadow-lift: 0 2px 4px rgba(29,35,48,.05), 0 8px 22px -10px rgba(29,35,48,.12);
+	}
+
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+
+	body {
+		background:
+			radial-gradient(1200px 600px at 85% -10%, #eaf3ff 0%, transparent 60%),
+			radial-gradient(900px 500px at -10% 10%, #f3ecff 0%, transparent 55%),
+			radial-gradient(700px 500px at 50% 110%, #e9f5ee 0%, transparent 60%),
+			var(--cream-50);
+		background-attachment: fixed;
+		font-family: var(--font-body);
+		color: var(--ink-900);
+		-webkit-font-smoothing: antialiased;
+	}
+
+	.p360 { max-width: 1240px; margin: 0 auto; padding: 28px 32px 80px; }
+	.p360__back { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-500); text-decoration: none; font-weight: 500; font-size: 13px; margin-bottom: 18px; }
+	.p360__back:hover { color: var(--ink-900); }
+
+	/* Hero */
+	.p360-hero {
+		display: grid;
+		grid-template-columns: minmax(320px, 380px) 1fr;
+		gap: 24px;
+		background: #fff;
+		border: 1px solid var(--ink-200);
+		border-radius: 24px;
+		padding: 28px;
+		box-shadow: var(--shadow-lift);
+		position: relative;
+		overflow: hidden;
+	}
+	.p360-hero::before {
+		content: ""; position: absolute; inset: 0 auto 0 0; width: 6px;
+		background: linear-gradient(180deg, #a890f0 0%, #8cd9b8 50%, #f7bdc9 100%);
+	}
+	.p360-hero__id {
+		display: flex; gap: 16px; align-items: center;
+	}
+	.p360-hero__avatar {
+		width: 72px; height: 72px; border-radius: 50%;
+		background: linear-gradient(140deg, var(--lav-bg) 0%, var(--peach-bg) 100%);
+		color: var(--ink-900);
+		display: flex; align-items: center; justify-content: center;
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 26px; letter-spacing: .5px;
+		border: 1px solid var(--ink-200);
+	}
+	.p360-hero__name h1 {
+		font-family: var(--font-display);
+		font-weight: 500;
+		font-size: 30px;
+		margin: 0 0 4px;
+		letter-spacing: -.2px;
+	}
+	.p360-hero__name .p360-hero__sub {
+		color: var(--ink-500); font-size: 13px; font-weight: 500;
+	}
+	.p360-hero__meta {
+		margin-top: 18px;
+		display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 18px;
+	}
+	.p360-hero__meta dt { color: var(--ink-400); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+	.p360-hero__meta dd { color: var(--ink-900); font-size: 14px; margin: 2px 0 0; font-weight: 500; }
+
+	.p360-hero__right { display: flex; flex-direction: column; gap: 16px; }
+	.p360-hero__summary {
+		background: var(--mint-bg);
+		border: 1px solid var(--mint-brd);
+		border-radius: 18px;
+		padding: 18px 20px;
+		position: relative;
+	}
+	.p360-hero__summary h2 {
+		font-family: var(--font-display); font-weight: 500; font-size: 15px;
+		color: var(--mint-ink); margin: 0 0 8px;
+		text-transform: uppercase; letter-spacing: .1em;
+	}
+	.p360-hero__summary p {
+		font-size: 14.5px; line-height: 1.55; color: var(--ink-700);
+		margin: 0; white-space: pre-wrap;
+	}
+	.p360-hero__summary .p360-summary__meta {
+		display: flex; justify-content: space-between; align-items: center;
+		margin-top: 12px; font-size: 11.5px; color: var(--mint-ink); opacity: .8;
+	}
+	.p360-hero__summary .p360-summary__refresh {
+		background: #fff; border: 1px solid var(--mint-brd); color: var(--mint-ink);
+		padding: 6px 12px; border-radius: 99px; font-weight: 600; font-size: 12px;
+		cursor: pointer; font-family: inherit;
+	}
+	.p360-hero__summary .p360-summary__refresh:hover { background: var(--mint-brd); }
+	.p360-hero__summary .p360-summary__refresh:disabled { opacity: .5; cursor: wait; }
+
+	.p360-hero__empty {
+		color: var(--ink-500); font-style: italic; font-size: 14px;
+	}
+
+	.p360-hero__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+	.p360-btn {
+		font-family: inherit; font-weight: 600; font-size: 13px;
+		border-radius: 99px; padding: 10px 18px; cursor: pointer;
+		border: 1px solid transparent;
+		display: inline-flex; align-items: center; gap: 8px;
+		transition: transform .06s, box-shadow .15s;
+		text-decoration: none;
+	}
+	.p360-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+	.p360-btn--peach { background: linear-gradient(135deg, var(--peach-bg) 0%, #ffd7b8 100%); color: var(--peach-ink); border-color: var(--peach-brd); }
+	.p360-btn--lav { background: linear-gradient(135deg, var(--lav-bg) 0%, #e2d7ff 100%); color: var(--lav-ink); border-color: var(--lav-brd); }
+	.p360-btn--sky { background: linear-gradient(135deg, var(--sky-bg) 0%, #c8dff2 100%); color: var(--sky-ink); border-color: var(--sky-brd); }
+	.p360-btn--ghost { background: #fff; color: var(--ink-700); border-color: var(--ink-200); }
+
+	/* Grid */
+	.p360-grid {
+		margin-top: 24px;
+		display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px;
+	}
+	@media (max-width: 960px) {
+		.p360-hero { grid-template-columns: 1fr; }
+		.p360-grid { grid-template-columns: 1fr; }
+	}
+
+	.p360-card {
+		background: #fff;
+		border: 1px solid var(--ink-200);
+		border-radius: 20px;
+		padding: 22px 24px;
+		box-shadow: var(--shadow-soft);
+		position: relative;
+		overflow: hidden;
+	}
+	.p360-card__head {
+		display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+		border-bottom: 1px dashed var(--ink-200);
+		padding-bottom: 10px; margin-bottom: 14px;
+	}
+	.p360-card__title {
+		font-family: var(--font-display);
+		font-weight: 500; font-size: 18px; letter-spacing: -.1px;
+		display: flex; align-items: center; gap: 10px;
+	}
+	.p360-card__title .p360-card__dot {
+		width: 8px; height: 8px; border-radius: 50%;
+		background: var(--ink-300);
+	}
+	.p360-card__hint { color: var(--ink-400); font-size: 12px; }
+
+	[data-card="last-visit"]    .p360-card__dot { background: #8cd9b8; }
+	[data-card="next-visit"]    .p360-card__dot { background: #b7d5ec; }
+	[data-card="lab-reports"]   .p360-card__dot { background: #f9cda2; }
+	[data-card="prescriptions"] .p360-card__dot { background: #f7bdc9; }
+	[data-card="invoices"]      .p360-card__dot { background: #edd79a; }
+	[data-card="timeline"]      .p360-card__dot { background: #d6cbf4; }
+
+	[data-card]            { border-left: 3px solid transparent; }
+	[data-card="last-visit"]    { border-left-color: #8cd9b8; }
+	[data-card="next-visit"]    { border-left-color: #b7d5ec; }
+	[data-card="lab-reports"]   { border-left-color: #f9cda2; }
+	[data-card="prescriptions"] { border-left-color: #f7bdc9; }
+	[data-card="invoices"]      { border-left-color: #edd79a; }
+	[data-card="timeline"]      { border-left-color: #d6cbf4; }
+
+	/* Last visit */
+	.p360-last__cc { font-family: var(--font-display); font-weight: 500; font-size: 20px; color: var(--ink-900); margin: 0 0 6px; }
+	.p360-last__when { font-size: 13px; color: var(--ink-500); margin-bottom: 14px; }
+	.p360-last__summary { font-size: 14.5px; line-height: 1.55; color: var(--ink-700); white-space: pre-wrap; margin-bottom: 14px; }
+	.p360-last__row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+	.p360-last__row strong { color: var(--ink-400); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; align-self: center; margin-right: 4px; }
+	.p360-chip {
+		display: inline-flex; padding: 4px 12px;
+		border-radius: 99px; font-size: 12.5px; font-weight: 500;
+		background: var(--cream-100); color: var(--ink-700);
+		border: 1px solid var(--ink-200);
+	}
+	.p360-chip--test { background: var(--peach-bg); border-color: var(--peach-brd); color: var(--peach-ink); }
+	.p360-chip--med  { background: var(--rose-bg);  border-color: var(--rose-brd);  color: var(--rose-ink); }
+
+	.p360-urgency {
+		display: inline-block; padding: 2px 10px; border-radius: 99px;
+		font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+		font-weight: 700; margin-left: 10px; vertical-align: middle;
+	}
+	.p360-urgency--low       { background: var(--mint-bg); color: var(--mint-ink); }
+	.p360-urgency--moderate  { background: var(--butter-bg); color: var(--butter-ink); }
+	.p360-urgency--high      { background: var(--peach-bg); color: var(--peach-ink); }
+	.p360-urgency--emergent  { background: var(--blush-bg); color: var(--blush-ink); }
+
+	.p360-last__transcript {
+		background: var(--cream-100); border: 1px solid var(--ink-200);
+		border-radius: 14px; padding: 14px 16px;
+		font-size: 13.5px; line-height: 1.6; color: var(--ink-700);
+		margin-top: 12px;
+	}
+
+	/* Next visit */
+	.p360-next__big {
+		font-family: var(--font-display); font-weight: 500; font-size: 22px;
+		margin: 0 0 4px;
+	}
+	.p360-next__sub { color: var(--ink-500); font-size: 13.5px; margin-bottom: 14px; }
+	.p360-next__tag {
+		display: inline-block; padding: 3px 10px; border-radius: 99px;
+		background: var(--sky-bg); color: var(--sky-ink);
+		font-size: 11.5px; font-weight: 600;
+	}
+
+	/* Lab reports */
+	.p360-lab__drop {
+		border: 2px dashed var(--peach-brd);
+		border-radius: 14px;
+		padding: 22px;
+		text-align: center;
+		background: linear-gradient(135deg, #fff 0%, var(--peach-bg) 100%);
+		margin-bottom: 14px;
+		transition: background .2s, border-color .2s;
+	}
+	.p360-lab__drop.is-drag { border-color: var(--peach-ink); background: var(--peach-bg); }
+	.p360-lab__drop p { margin: 0 0 8px; font-size: 14px; color: var(--ink-700); }
+	.p360-lab__drop small { color: var(--ink-500); font-size: 12px; }
+	.p360-lab__drop input[type=file] { display: none; }
+	.p360-lab__browse {
+		display: inline-block; margin-top: 10px;
+		background: #fff; border: 1px solid var(--peach-brd); color: var(--peach-ink);
+		padding: 8px 16px; border-radius: 99px; font-weight: 600; font-size: 13px; cursor: pointer;
+	}
+	.p360-lab__browse:hover { background: var(--peach-bg); }
+
+	.p360-lab__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+	.p360-lab__item {
+		background: var(--cream-100); border: 1px solid var(--ink-200);
+		border-radius: 14px; padding: 12px 14px;
+	}
+	.p360-lab__item-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+	.p360-lab__name { font-weight: 600; font-size: 13.5px; color: var(--ink-900); }
+	.p360-lab__name a { color: inherit; text-decoration: none; border-bottom: 1px dashed var(--ink-300); }
+	.p360-lab__when { font-size: 12px; color: var(--ink-500); }
+	.p360-lab__analysis {
+		margin-top: 10px; font-size: 13px; line-height: 1.55; color: var(--ink-700);
+		background: #fff; border: 1px solid var(--ink-200); border-radius: 10px;
+		padding: 10px 12px; white-space: pre-wrap;
+	}
+	.p360-lab__analyze {
+		background: var(--lav-bg); color: var(--lav-ink); border: 1px solid var(--lav-brd);
+		padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; cursor: pointer;
+		font-family: inherit;
+	}
+	.p360-lab__analyze:disabled { opacity: .5; cursor: wait; }
+
+	/* Prescriptions */
+	.p360-rx__item {
+		display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+		padding: 10px 0; border-bottom: 1px dashed var(--ink-200);
+	}
+	.p360-rx__item:last-child { border-bottom: 0; }
+	.p360-rx__name { font-weight: 600; font-size: 14px; color: var(--rose-ink); }
+	.p360-rx__meta { font-size: 12px; color: var(--ink-500); }
+	.p360-rx__when { font-size: 12px; color: var(--ink-400); }
+
+	/* Invoices */
+	.p360-inv__item {
+		display: grid; grid-template-columns: 1fr auto auto; gap: 4px 14px;
+		padding: 10px 0; border-bottom: 1px dashed var(--ink-200);
+	}
+	.p360-inv__item:last-child { border-bottom: 0; }
+	.p360-inv__name { font-weight: 600; font-size: 14px; color: var(--ink-900); }
+	.p360-inv__name a { color: var(--butter-ink); text-decoration: none; border-bottom: 1px dashed var(--butter-brd); }
+	.p360-inv__date { font-size: 12px; color: var(--ink-500); }
+	.p360-inv__total { font-weight: 600; font-size: 14px; color: var(--ink-900); font-feature-settings: 'tnum' 1; }
+	.p360-inv__status {
+		display: inline-block; padding: 2px 10px; border-radius: 99px;
+		font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: .08em;
+	}
+	.p360-inv__status--Paid, .p360-inv__status--paid { background: var(--mint-bg); color: var(--mint-ink); }
+	.p360-inv__status--Unpaid, .p360-inv__status--Overdue { background: var(--blush-bg); color: var(--blush-ink); }
+	.p360-inv__status--Draft { background: var(--cream-100); color: var(--ink-500); }
+
+	/* Timeline */
+	.p360-tl { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+	.p360-tl__item {
+		background: var(--cream-100); border: 1px solid var(--ink-200);
+		border-radius: 14px; padding: 12px 14px;
+		display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px;
+	}
+	.p360-tl__date { font-size: 12px; color: var(--ink-500); font-weight: 600; grid-row: 1 / span 2; align-self: center; min-width: 105px; }
+	.p360-tl__cc { font-weight: 600; font-size: 14px; color: var(--ink-900); }
+	.p360-tl__dr { font-size: 12px; color: var(--ink-500); }
+	.p360-tl__link { color: var(--lav-ink); text-decoration: none; font-size: 12px; font-weight: 600; align-self: center; }
+	.p360-tl__link:hover { text-decoration: underline; }
+
+	.p360-empty {
+		color: var(--ink-400); font-size: 13.5px; font-style: italic;
+		padding: 10px 0;
+	}
+
+	.p360-toast {
+		position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+		background: var(--ink-900); color: #fff; padding: 10px 20px; border-radius: 99px;
+		font-size: 13px; font-weight: 500; box-shadow: var(--shadow-lift);
+		opacity: 0; pointer-events: none; transition: opacity .2s;
+		z-index: 100;
+	}
+	.p360-toast.is-show { opacity: 1; }
+	.p360-toast--error { background: var(--blush-ink); }
+
+	.p360-error {
+		background: #fff; border: 1px solid var(--blush-brd);
+		border-left: 4px solid var(--blush-ink);
+		border-radius: 16px; padding: 20px 24px;
+		color: var(--blush-ink); font-weight: 500;
+	}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="p360">
+	<a class="p360__back" href="/queue">← Back to queue</a>
+
+	{% if error %}
+		<div class="p360-error">{{ error }}</div>
+	{% else %}
+
+	<!-- HERO -->
+	<section class="p360-hero">
+		<div class="p360-hero__left">
+			<div class="p360-hero__id">
+				<div class="p360-hero__avatar">{{ patient_initials }}</div>
+				<div class="p360-hero__name">
+					<h1>{{ patient_name }}</h1>
+					<div class="p360-hero__sub">
+						{{ patient }}{% if patient_age %} · {{ patient_age }}{% endif %}{% if patient_sex %} · {{ patient_sex }}{% endif %}
+					</div>
+				</div>
+			</div>
+			<dl class="p360-hero__meta">
+				{% if patient_dob %}<div><dt>Date of birth</dt><dd>{{ patient_dob }}</dd></div>{% endif %}
+				{% if patient_blood_group %}<div><dt>Blood group</dt><dd>{{ patient_blood_group }}</dd></div>{% endif %}
+				{% if patient_mobile %}<div><dt>Mobile</dt><dd>{{ patient_mobile }}</dd></div>{% endif %}
+				{% if patient_email %}<div><dt>Email</dt><dd>{{ patient_email }}</dd></div>{% endif %}
+				{% if patient_allergies %}<div style="grid-column: 1 / -1"><dt>Allergies</dt><dd style="color: var(--rose-ink)">{{ patient_allergies }}</dd></div>{% endif %}
+				<div><dt>Visits on record</dt><dd>{{ encounter_count }}</dd></div>
+			</dl>
+		</div>
+
+		<div class="p360-hero__right">
+			<div class="p360-hero__summary">
+				<h2>AI Longitudinal Summary</h2>
+				{% if ai_summary %}
+					<p id="p360-summary-text">{{ ai_summary }}</p>
+				{% else %}
+					<p id="p360-summary-text" class="p360-hero__empty">No AI summary yet. Click refresh to synthesize one from past visits.</p>
+				{% endif %}
+				<div class="p360-summary__meta">
+					<span id="p360-summary-updated">
+						{% if ai_summary_updated %}
+							Updated {{ ai_summary_updated }}{% if ai_summary_status == 'stale' %} · may be stale{% endif %}
+						{% else %}
+							Never generated
+						{% endif %}
+					</span>
+					<button id="p360-summary-btn" class="p360-summary__refresh" type="button">
+						{% if ai_summary %}Regenerate{% else %}Generate summary{% endif %}
+					</button>
+				</div>
+			</div>
+
+			<div class="p360-hero__actions">
+				<a class="p360-btn p360-btn--lav" href="/app/patient/{{ patient }}">Open desk record</a>
+				{% if last_encounter %}
+					<a class="p360-btn p360-btn--sky" href="{{ last_encounter.summary_url }}">Last encounter summary</a>
+				{% endif %}
+				<a class="p360-btn p360-btn--ghost" href="/queue">Today's queue</a>
+			</div>
+		</div>
+	</section>
+
+	<!-- GRID -->
+	<div class="p360-grid">
+		<!-- LEFT COLUMN -->
+		<div>
+			<!-- Last visit -->
+			<section class="p360-card" data-card="last-visit">
+				<div class="p360-card__head">
+					<div class="p360-card__title"><span class="p360-card__dot"></span>Most recent visit</div>
+					{% if last_encounter %}<span class="p360-card__hint">{{ last_encounter.when }}</span>{% endif %}
+				</div>
+				{% if last_encounter %}
+					<h3 class="p360-last__cc">
+						{{ last_encounter.chief_complaint or "No chief complaint captured" }}
+						{% if last_encounter.urgency %}
+							<span class="p360-urgency p360-urgency--{{ last_encounter.urgency }}">{{ last_encounter.urgency }}</span>
+						{% endif %}
+					</h3>
+					<div class="p360-last__when">with {{ last_encounter.practitioner }}</div>
+					{% if last_encounter.summary %}
+						<div class="p360-last__summary">{{ last_encounter.summary }}</div>
+					{% endif %}
+					{% if last_encounter.assessment %}
+					<div class="p360-last__row">
+						<strong>Assessment</strong>
+						{% for a in last_encounter.assessment %}
+							<span class="p360-chip">{{ a }}</span>
+						{% endfor %}
+					</div>
+					{% endif %}
+					{% if last_encounter.tests %}
+					<div class="p360-last__row">
+						<strong>Tests</strong>
+						{% for t in last_encounter.tests %}
+							<span class="p360-chip p360-chip--test">{{ t }}</span>
+						{% endfor %}
+					</div>
+					{% endif %}
+					{% if last_encounter.meds %}
+					<div class="p360-last__row">
+						<strong>Meds</strong>
+						{% for m in last_encounter.meds %}
+							<span class="p360-chip p360-chip--med">{{ m }}</span>
+						{% endfor %}
+					</div>
+					{% endif %}
+					{% if last_encounter.transcript_preview %}
+						<div class="p360-last__transcript">{{ last_encounter.transcript_preview }}</div>
+					{% endif %}
+					<div style="margin-top: 14px">
+						<a class="p360-btn p360-btn--ghost" href="{{ last_encounter.summary_url }}">View full summary →</a>
+					</div>
+				{% else %}
+					<p class="p360-empty">No visits on record yet.</p>
+				{% endif %}
+			</section>
+
+			<!-- Lab reports -->
+			<section class="p360-card" data-card="lab-reports" style="margin-top: 22px">
+				<div class="p360-card__head">
+					<div class="p360-card__title"><span class="p360-card__dot"></span>Lab reports</div>
+					<span class="p360-card__hint">Drag & drop or browse</span>
+				</div>
+
+				<label class="p360-lab__drop" id="p360-lab-drop">
+					<p><strong>Drop a PDF or image here</strong></p>
+					<small>We'll attach it to this patient and run an AI analysis pass.</small><br>
+					<span class="p360-lab__browse" id="p360-lab-browse">Browse files</span>
+					<input type="file" id="p360-lab-file" accept=".pdf,.jpg,.jpeg,.png,.tiff,.heic">
+				</label>
+
+				<ul class="p360-lab__list" id="p360-lab-list">
+					{% if lab_reports %}
+						{% for r in lab_reports %}
+							<li class="p360-lab__item" data-file="{{ r.name }}">
+								<div class="p360-lab__item-head">
+									<div>
+										<div class="p360-lab__name"><a href="{{ r.file_url }}" target="_blank">{{ r.file_name }}</a></div>
+										<div class="p360-lab__when">{{ r.uploaded }}{% if r.size_kb %} · {{ r.size_kb }} KB{% endif %}</div>
+									</div>
+									{% if not r.analysis %}
+										<button class="p360-lab__analyze" type="button" data-file="{{ r.name }}" data-url="{{ r.file_url }}">Analyze</button>
+									{% endif %}
+								</div>
+								{% if r.analysis %}
+									<div class="p360-lab__analysis">{{ r.analysis }}</div>
+								{% endif %}
+							</li>
+						{% endfor %}
+					{% else %}
+						<li class="p360-empty" id="p360-lab-empty">No lab reports uploaded yet.</li>
+					{% endif %}
+				</ul>
+			</section>
+		</div>
+
+		<!-- RIGHT COLUMN -->
+		<div>
+			<!-- Next visit -->
+			<section class="p360-card" data-card="next-visit">
+				<div class="p360-card__head">
+					<div class="p360-card__title"><span class="p360-card__dot"></span>Next scheduled visit</div>
+				</div>
+				{% if next_visit %}
+					<div class="p360-next__big">{{ next_visit.when }}</div>
+					<div class="p360-next__sub">with {{ next_visit.practitioner }}{% if next_visit.department %} · {{ next_visit.department }}{% endif %}</div>
+					<span class="p360-next__tag">{{ next_visit.status }}</span>
+					{% if upcoming_visits|length > 1 %}
+						<div style="margin-top: 14px; font-size: 12px; color: var(--ink-500); font-weight: 600; text-transform: uppercase; letter-spacing: .08em">+ {{ upcoming_visits|length - 1 }} more upcoming</div>
+						<ul style="list-style:none; padding:0; margin:6px 0 0; display:flex; flex-direction:column; gap:4px">
+							{% for v in upcoming_visits[1:] %}
+								<li style="font-size: 13px; color: var(--ink-700)">{{ v.when }} · {{ v.practitioner }}</li>
+							{% endfor %}
+						</ul>
+					{% endif %}
+				{% else %}
+					<p class="p360-empty">No upcoming appointments scheduled.</p>
+				{% endif %}
+			</section>
+
+			<!-- Prescriptions -->
+			<section class="p360-card" data-card="prescriptions" style="margin-top: 22px">
+				<div class="p360-card__head">
+					<div class="p360-card__title"><span class="p360-card__dot"></span>Recent prescriptions</div>
+					<span class="p360-card__hint">Last 3 visits</span>
+				</div>
+				{% if recent_prescriptions %}
+					{% for r in recent_prescriptions %}
+						<div class="p360-rx__item">
+							<div>
+								<div class="p360-rx__name">{{ r.drug_name }}</div>
+								<div class="p360-rx__meta">
+									{%- set parts = [] -%}
+									{%- if r.dosage %}{% set _ = parts.append(r.dosage) %}{% endif -%}
+									{%- if r.interval %}{% set _ = parts.append(r.interval) %}{% endif -%}
+									{%- if r.period %}{% set _ = parts.append(r.period) %}{% endif -%}
+									{%- if r.dosage_form %}{% set _ = parts.append(r.dosage_form) %}{% endif -%}
+									{{ parts|join(" · ") or "Dosage not set" }}
+								</div>
+							</div>
+							<div class="p360-rx__when">{{ r.when }}</div>
+						</div>
+					{% endfor %}
+				{% else %}
+					<p class="p360-empty">No prescriptions recorded.</p>
+				{% endif %}
+			</section>
+
+			<!-- Invoices -->
+			<section class="p360-card" data-card="invoices" style="margin-top: 22px">
+				<div class="p360-card__head">
+					<div class="p360-card__title"><span class="p360-card__dot"></span>Invoices</div>
+				</div>
+				{% if recent_invoices %}
+					{% for i in recent_invoices %}
+						<div class="p360-inv__item">
+							<div>
+								<div class="p360-inv__name"><a href="/app/sales-invoice/{{ i.name }}">{{ i.name }}</a></div>
+								<div class="p360-inv__date">{{ i.date }}</div>
+							</div>
+							<div class="p360-inv__total">{{ i.currency }} {{ "{:,.0f}".format(i.total) }}</div>
+							<span class="p360-inv__status p360-inv__status--{{ i.status }}">{{ i.status }}</span>
+						</div>
+					{% endfor %}
+				{% else %}
+					<p class="p360-empty">No invoices yet.</p>
+				{% endif %}
+			</section>
+
+			<!-- Timeline -->
+			<section class="p360-card" data-card="timeline" style="margin-top: 22px">
+				<div class="p360-card__head">
+					<div class="p360-card__title"><span class="p360-card__dot"></span>Visit history</div>
+					<span class="p360-card__hint">{{ encounter_timeline|length }} recent</span>
+				</div>
+				{% if encounter_timeline %}
+					<ul class="p360-tl">
+						{% for e in encounter_timeline %}
+							<li class="p360-tl__item">
+								<div class="p360-tl__date">{{ e.date }}</div>
+								<div>
+									<div class="p360-tl__cc">{{ e.chief_complaint or "(no chief complaint)" }}
+										{% if e.urgency %}<span class="p360-urgency p360-urgency--{{ e.urgency }}">{{ e.urgency }}</span>{% endif %}
+									</div>
+									<div class="p360-tl__dr">{{ e.practitioner }}</div>
+								</div>
+								<a class="p360-tl__link" href="{{ e.summary_url }}">Summary →</a>
+							</li>
+						{% endfor %}
+					</ul>
+				{% else %}
+					<p class="p360-empty">No visits in the last window.</p>
+				{% endif %}
+			</section>
+		</div>
+	</div>
+
+	{% endif %}
+</div>
+
+<div class="p360-toast" id="p360-toast"></div>
+
+<script>
+(function(){
+	const PATIENT_ID = {{ (patient or "")|tojson }};
+	if (!PATIENT_ID) return;
+
+	const csrfToken = (window.frappe && frappe.csrf_token) || document.querySelector('meta[name=csrf_token]')?.content || "";
+
+	const $ = (id) => document.getElementById(id);
+	const toast = (msg, kind) => {
+		const t = $("p360-toast");
+		if (!t) return;
+		t.textContent = msg;
+		t.classList.toggle("p360-toast--error", kind === "error");
+		t.classList.add("is-show");
+		setTimeout(() => t.classList.remove("is-show"), 2600);
+	};
+
+	// --- AI Summary
+	const summaryBtn = $("p360-summary-btn");
+	if (summaryBtn) {
+		summaryBtn.addEventListener("click", async () => {
+			summaryBtn.disabled = true;
+			const original = summaryBtn.textContent;
+			summaryBtn.textContent = "Synthesizing…";
+			try {
+				const r = await fetch("/api/method/remedisys.api.patient_profile.generate_summary", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrfToken },
+					body: JSON.stringify({ patient: PATIENT_ID }),
+				});
+				const j = await r.json();
+				if (!r.ok) throw new Error(j._server_messages || j.exc || "Request failed");
+				const payload = j.message || {};
+				$("p360-summary-text").textContent = payload.summary || "";
+				$("p360-summary-text").classList.remove("p360-hero__empty");
+				$("p360-summary-updated").textContent = "Updated just now";
+				toast("Summary refreshed");
+			} catch (e) {
+				console.error(e);
+				toast("Couldn't generate summary", "error");
+			} finally {
+				summaryBtn.disabled = false;
+				summaryBtn.textContent = original === "Generate summary" ? "Regenerate" : original;
+			}
+		});
+	}
+
+	// --- Lab upload
+	const drop = $("p360-lab-drop");
+	const fileInput = $("p360-lab-file");
+	const list = $("p360-lab-list");
+
+	async function uploadAndAnalyze(file) {
+		const fd = new FormData();
+		fd.append("file", file, file.name);
+		fd.append("doctype", "Patient");
+		fd.append("docname", PATIENT_ID);
+		fd.append("is_private", 1);
+		fd.append("folder", "Home/Attachments");
+
+		toast(`Uploading ${file.name}…`);
+		const up = await fetch("/api/method/upload_file", {
+			method: "POST",
+			headers: { "X-Frappe-CSRF-Token": csrfToken },
+			body: fd,
+		});
+		const uj = await up.json();
+		if (!up.ok) { toast("Upload failed", "error"); return; }
+		const fileDoc = uj.message || {};
+
+		// Render a placeholder row immediately
+		renderPendingRow(fileDoc);
+
+		toast("Analyzing…");
+		const an = await fetch("/api/method/remedisys.api.patient_profile.analyze_lab_report", {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrfToken },
+			body: JSON.stringify({ patient: PATIENT_ID, file_name: fileDoc.name, file_url: fileDoc.file_url }),
+		});
+		const aj = await an.json();
+		if (!an.ok) { toast("Analysis failed", "error"); return; }
+		updateRowAnalysis(fileDoc.name, (aj.message || {}).analysis || "");
+		toast("Lab report analyzed");
+	}
+
+	function renderPendingRow(fileDoc) {
+		const empty = $("p360-lab-empty");
+		if (empty) empty.remove();
+		const li = document.createElement("li");
+		li.className = "p360-lab__item";
+		li.dataset.file = fileDoc.name;
+		li.innerHTML = `
+			<div class="p360-lab__item-head">
+				<div>
+					<div class="p360-lab__name"><a href="${fileDoc.file_url}" target="_blank">${fileDoc.file_name}</a></div>
+					<div class="p360-lab__when">Just now</div>
+				</div>
+			</div>
+			<div class="p360-lab__analysis" data-analysis style="opacity:.6">Analyzing…</div>
+		`;
+		list.prepend(li);
+	}
+
+	function updateRowAnalysis(fileName, analysis) {
+		const li = list.querySelector(`[data-file="${fileName}"]`);
+		if (!li) return;
+		let box = li.querySelector("[data-analysis]");
+		if (!box) {
+			box = document.createElement("div");
+			box.className = "p360-lab__analysis";
+			box.dataset.analysis = "1";
+			li.appendChild(box);
+		}
+		box.style.opacity = "";
+		box.textContent = analysis;
+	}
+
+	if (drop) {
+		const browse = $("p360-lab-browse");
+		if (browse) browse.addEventListener("click", (e) => { e.preventDefault(); fileInput.click(); });
+		drop.addEventListener("click", (e) => {
+			if (e.target === drop || e.target.tagName === "P" || e.target.tagName === "SMALL") fileInput.click();
+		});
+		drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("is-drag"); });
+		drop.addEventListener("dragleave", () => drop.classList.remove("is-drag"));
+		drop.addEventListener("drop", (e) => {
+			e.preventDefault();
+			drop.classList.remove("is-drag");
+			const f = e.dataTransfer.files && e.dataTransfer.files[0];
+			if (f) uploadAndAnalyze(f);
+		});
+		fileInput.addEventListener("change", (e) => {
+			const f = e.target.files && e.target.files[0];
+			if (f) uploadAndAnalyze(f);
+			fileInput.value = "";
+		});
+	}
+
+	// --- Lazy analyze button on existing unanalyzed reports
+	list?.addEventListener("click", async (e) => {
+		const btn = e.target.closest(".p360-lab__analyze");
+		if (!btn) return;
+		btn.disabled = true;
+		btn.textContent = "Analyzing…";
+		try {
+			const r = await fetch("/api/method/remedisys.api.patient_profile.analyze_lab_report", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrfToken },
+				body: JSON.stringify({ patient: PATIENT_ID, file_name: btn.dataset.file, file_url: btn.dataset.url }),
+			});
+			const j = await r.json();
+			if (!r.ok) throw new Error("failed");
+			updateRowAnalysis(btn.dataset.file, (j.message || {}).analysis || "");
+			btn.remove();
+			toast("Analyzed");
+		} catch (err) {
+			console.error(err);
+			toast("Analysis failed", "error");
+			btn.disabled = false;
+			btn.textContent = "Analyze";
+		}
+	});
+})();
+</script>
+{% endblock %}

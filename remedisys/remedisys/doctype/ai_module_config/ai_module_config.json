@@ -1,0 +1,73 @@
+{
+ "actions": [],
+ "creation": "2026-04-17 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "recommendation_system_prompt",
+  "urgency_scale",
+  "safety_disclaimer",
+  "section_break_modules",
+  "modules"
+ ],
+ "fields": [
+  {
+   "fieldname": "recommendation_system_prompt",
+   "fieldtype": "Long Text",
+   "label": "Recommendation System Prompt",
+   "description": "System prompt prepended to the recommendation LLM call"
+  },
+  {
+   "fieldname": "urgency_scale",
+   "fieldtype": "Small Text",
+   "label": "Urgency Scale",
+   "description": "Description of urgency levels the model should use"
+  },
+  {
+   "fieldname": "safety_disclaimer",
+   "fieldtype": "Small Text",
+   "label": "Safety Disclaimer"
+  },
+  {
+   "fieldname": "section_break_modules",
+   "fieldtype": "Section Break",
+   "label": "Modules"
+  },
+  {
+   "fieldname": "modules",
+   "fieldtype": "Table",
+   "label": "Modules",
+   "options": "AI Module"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-04-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Remedisys",
+ "name": "AI Module Config",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Healthcare Administrator",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

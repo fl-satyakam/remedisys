@@ -1,0 +1,1693 @@
+{%- extends "templates/web.html" -%}
+
+{% block title %}Encounter — {{ patient_label or "Patient" }}{% endblock %}
+
+{% block head_include %}
+<!-- Bring in existing AI Assistant stylesheet for card + bubble styles -->
+<link rel="stylesheet" href="/assets/remedisys/css/medical_agent.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+	/* ------------------------------------------------------------------ *
+	 * Remedisys · Live Encounter — pastel doctor surface                  *
+	 *                                                                     *
+	 * Palette (HSL-friendly soft tints):                                  *
+	 *  mint     — chief-complaint / summary (calming, clinical)          *
+	 *  lavender — possible assessment (reflective, analytic)             *
+	 *  peach    — suggested lab tests (warm, action)                     *
+	 *  rose     — suggested medications (warm, action)                   *
+	 *  sky      — follow-up questions + Cura sidebar (inquiry)           *
+	 *  blush    — red flags (gentle alarm, not harsh red)                *
+	 *  butter   — doctor's notes (personal, private)                     *
+	 *  slate    — transcript (neutral)                                   *
+	 * ------------------------------------------------------------------ */
+
+	:root {
+		--cream-50:  #fbfaf6;
+		--cream-100: #f5f2ea;
+		--ink-900:   #1d2330;
+		--ink-700:   #384152;
+		--ink-500:   #6b7280;
+		--ink-400:   #9199a6;
+		--ink-300:   #c5cad3;
+		--ink-200:   #e2e5eb;
+		--ink-100:   #ecedf0;
+
+		/* section tints (bg / border / accent) */
+		--mint-bg:     #e9f5ee;  --mint-brd: #b9e0cb;  --mint-ink:  #0f5c3a;
+		--lav-bg:      #efeafc;  --lav-brd:  #d6cbf4;  --lav-ink:   #4c359b;
+		--peach-bg:    #ffeee0;  --peach-brd:#f9cda2;  --peach-ink: #9b4821;
+		--rose-bg:     #ffe7ec;  --rose-brd: #f7bdc9;  --rose-ink:  #9b2344;
+		--sky-bg:      #e1f0fb;  --sky-brd:  #b7d5ec;  --sky-ink:   #18527e;
+		--blush-bg:    #fde4e4;  --blush-brd:#f2b5b5;  --blush-ink: #8b2525;
+		--butter-bg:   #fff6d9;  --butter-brd:#edd79a; --butter-ink:#6a4e0d;
+		--slate-bg:    #eef0f3;  --slate-brd:#d3d7dd;  --slate-ink: #384152;
+
+		--font-body:    'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+		--font-display: 'Fraunces', Georgia, 'Iowan Old Style', serif;
+		--font-mono:    ui-monospace, 'SF Mono', Menlo, monospace;
+
+		--shadow-soft: 0 1px 2px rgba(29,35,48,.04), 0 4px 14px -8px rgba(29,35,48,.08);
+		--shadow-lift: 0 2px 4px rgba(29,35,48,.05), 0 8px 22px -10px rgba(29,35,48,.12);
+
+		--radius-card: 14px;
+		--radius-chip: 10px;
+	}
+
+	/* Nuke website chrome */
+	.navbar, .web-footer, .page-footer,
+	.page-head, .breadcrumb, #navbar-breadcrumbs { display: none !important; }
+	.page-content, .container, .page_content, .main-section { padding: 0 !important; max-width: none !important; }
+
+	body {
+		background:
+			radial-gradient(1200px 600px at 85% -10%, #eaf3ff 0%, transparent 60%),
+			radial-gradient(900px 500px at -10% 10%, #f3ecff 0%, transparent 55%),
+			radial-gradient(700px 500px at 50% 110%, #e9f5ee 0%, transparent 60%),
+			var(--cream-50);
+		background-attachment: fixed;
+		margin: 0;
+		font-family: var(--font-body);
+		color: var(--ink-900);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	/* --- Page frame --- */
+	.enc-page {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+	}
+
+	/* --- Topbar --- */
+	.enc-topbar {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: rgba(255, 255, 255, 0.82);
+		backdrop-filter: saturate(160%) blur(14px);
+		-webkit-backdrop-filter: saturate(160%) blur(14px);
+		border-bottom: 1px solid rgba(29, 35, 48, 0.08);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 12px 24px;
+		height: 64px;
+		gap: 18px;
+	}
+	.enc-topbar__back {
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		color: var(--ink-500);
+		padding: 6px 10px;
+		border-radius: 8px;
+		transition: background .15s ease, color .15s ease;
+	}
+	.enc-topbar__back:hover { background: var(--cream-100); color: var(--ink-900); }
+
+	.enc-topbar__patient {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex: 1;
+		min-width: 0;
+	}
+	.enc-patient__name {
+		font-family: var(--font-display);
+		font-size: 19px;
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		color: var(--ink-900);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		line-height: 1.15;
+	}
+	.enc-patient__meta {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		font-size: 12px;
+		color: var(--ink-500);
+		flex-wrap: wrap;
+		margin-top: 2px;
+	}
+	.enc-patient__meta .dot { color: var(--ink-300); }
+
+	.enc-chip {
+		display: inline-flex;
+		align-items: center;
+		padding: 3px 10px;
+		border-radius: 999px;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.4px;
+		text-transform: uppercase;
+	}
+	.enc-chip--new     { background: var(--mint-bg);   color: var(--mint-ink);   border: 1px solid var(--mint-brd); }
+	.enc-chip--old     { background: var(--slate-bg);  color: var(--slate-ink);  border: 1px solid var(--slate-brd); }
+	.enc-chip--walkin  { background: var(--peach-bg);  color: var(--peach-ink);  border: 1px solid var(--peach-brd); }
+	.enc-chip--appt    { background: var(--sky-bg);    color: var(--sky-ink);    border: 1px solid var(--sky-brd); }
+
+	.enc-topbar__right {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.enc-visit-label {
+		font-size: 12px;
+		color: var(--ink-500);
+		padding-right: 12px;
+		border-right: 1px solid var(--ink-200);
+	}
+	.enc-visit-label strong {
+		color: var(--ink-900);
+		font-weight: 600;
+		font-family: var(--font-display);
+		font-size: 14px;
+	}
+	.enc-timer {
+		font-size: 15px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		color: var(--ink-900);
+		font-family: var(--font-mono);
+		min-width: 68px;
+		text-align: center;
+		padding: 4px 10px;
+		background: var(--cream-100);
+		border-radius: 8px;
+	}
+	.enc-timer--live {
+		color: #8a2840;
+		background: var(--rose-bg);
+	}
+	.enc-timer--live::before {
+		content: "";
+		display: inline-block;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #e06787;
+		margin-right: 6px;
+		vertical-align: middle;
+		box-shadow: 0 0 0 0 rgba(224, 103, 135, 0.55);
+		animation: encPulse 1.6s ease-out infinite;
+	}
+	@keyframes encPulse {
+		0%   { box-shadow: 0 0 0 0 rgba(224, 103, 135, 0.5); }
+		70%  { box-shadow: 0 0 0 7px rgba(224, 103, 135, 0); }
+		100% { box-shadow: 0 0 0 0 rgba(224, 103, 135, 0); }
+	}
+
+	.enc-topbar .btn {
+		height: 34px;
+		font-family: var(--font-body);
+		font-size: 12.5px;
+		font-weight: 600;
+		padding: 0 14px;
+		border-radius: 9px;
+		letter-spacing: 0.1px;
+		transition: transform .12s ease, box-shadow .15s ease, background .15s ease;
+	}
+	.enc-topbar .btn:hover { transform: translateY(-1px); }
+	#enc-reset-btn {
+		background: #ffffff;
+		border: 1px solid var(--ink-200);
+		color: var(--ink-700);
+	}
+	#enc-reset-btn:hover { background: var(--cream-100); }
+	.enc-topbar .btn-danger {
+		background: linear-gradient(180deg, #c2455e 0%, #9b2a43 100%);
+		border: 1px solid #8c223a;
+		color: #ffffff;
+		box-shadow: 0 4px 10px -4px rgba(155, 42, 67, 0.45);
+	}
+	.enc-topbar .btn-danger:hover {
+		background: linear-gradient(180deg, #b43c55 0%, #86213a 100%);
+		border-color: #8c223a;
+	}
+
+	/* --- Main layout: left cards, right sidebar --- */
+	.enc-main {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 440px;
+		gap: 0;
+		flex: 1;
+		min-height: 0;
+	}
+	.enc-left {
+		padding: 24px 28px 40px;
+		overflow-y: auto;
+	}
+	.enc-right {
+		background: rgba(255, 255, 255, 0.72);
+		backdrop-filter: saturate(150%) blur(16px);
+		-webkit-backdrop-filter: saturate(150%) blur(16px);
+		border-left: 1px solid rgba(29, 35, 48, 0.08);
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		height: calc(100vh - 64px);
+		position: sticky;
+		top: 64px;
+	}
+
+	/* --- Left column: cumulative cards --- */
+	.enc-cards-intro {
+		font-size: 13px;
+		color: var(--ink-500);
+		margin: 0 0 16px;
+		font-weight: 500;
+	}
+	.enc-cards-intro strong { color: var(--ink-700); font-weight: 600; }
+
+	.enc-loader {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 14px 18px;
+		background: linear-gradient(135deg, var(--sky-bg) 0%, var(--lav-bg) 100%);
+		border: 1px solid var(--sky-brd);
+		border-radius: var(--radius-card);
+		font-size: 13px;
+		color: var(--sky-ink);
+		margin-bottom: 20px;
+		box-shadow: var(--shadow-soft);
+	}
+	.enc-loader__dots {
+		display: inline-flex;
+		gap: 5px;
+	}
+	.enc-loader__dots span {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--sky-ink);
+		animation: encBounce 1.2s ease-in-out infinite;
+	}
+	.enc-loader__dots span:nth-child(2) { animation-delay: 0.15s; }
+	.enc-loader__dots span:nth-child(3) { animation-delay: 0.3s; }
+	@keyframes encBounce {
+		0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+		40%           { transform: translateY(-4px); opacity: 1; }
+	}
+	.enc-loader.is-hidden { display: none; }
+
+	/* ---- Cards ---- */
+	.enc-card {
+		background: #ffffff;
+		border: 1px solid var(--ink-100);
+		border-radius: var(--radius-card);
+		margin-bottom: 16px;
+		box-shadow: var(--shadow-soft);
+		overflow: hidden;
+		transition: box-shadow .2s ease, transform .2s ease;
+	}
+	.enc-card:hover { box-shadow: var(--shadow-lift); }
+
+	.enc-card__head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 14px 18px;
+		cursor: pointer;
+		user-select: none;
+		border-bottom: 1px solid transparent;
+		transition: background .15s ease;
+	}
+	.enc-card:not(.is-collapsed) .enc-card__head {
+		border-bottom-color: rgba(29, 35, 48, 0.06);
+	}
+	.enc-card__title {
+		font-family: var(--font-display);
+		font-size: 15px;
+		font-weight: 500;
+		letter-spacing: -0.005em;
+		color: var(--ink-900);
+		flex: 1;
+		text-transform: none;
+	}
+	.enc-card__count {
+		font-family: var(--font-body);
+		font-size: 11px;
+		font-weight: 700;
+		padding: 2px 9px;
+		border-radius: 999px;
+		background: var(--cream-100);
+		color: var(--ink-500);
+		min-width: 22px;
+		text-align: center;
+	}
+	.enc-card__chevron {
+		color: var(--ink-400);
+		transition: transform 0.18s ease;
+	}
+	.enc-card.is-collapsed .enc-card__chevron { transform: rotate(-90deg); }
+	.enc-card.is-collapsed .enc-card__body { display: none; }
+	.enc-card__body {
+		padding: 16px 18px 18px;
+		font-size: 13.5px;
+		color: var(--ink-700);
+		line-height: 1.6;
+	}
+	.enc-card__empty {
+		color: var(--ink-400);
+		font-style: italic;
+		margin: 0;
+	}
+
+	/* Section tints — each card type gets its own pastel identity.
+	 * The left border stripe + soft tint on the head differentiates at a glance
+	 * without shouting. Body stays white for readability. */
+	.enc-card[data-card="summary"] {
+		border-left: 3px solid var(--mint-brd);
+	}
+	.enc-card[data-card="summary"] .enc-card__head { background: var(--mint-bg); }
+	.enc-card[data-card="summary"] .enc-card__count { background: #ffffff; color: var(--mint-ink); }
+
+	.enc-card[data-card="assessment"] { border-left: 3px solid var(--lav-brd); }
+	.enc-card[data-card="assessment"] .enc-card__head { background: var(--lav-bg); }
+	.enc-card[data-card="assessment"] .enc-card__count { background: #ffffff; color: var(--lav-ink); }
+
+	.enc-card[data-card="tests"] { border-left: 3px solid var(--peach-brd); }
+	.enc-card[data-card="tests"] .enc-card__head { background: var(--peach-bg); }
+	.enc-card[data-card="tests"] .enc-card__count { background: #ffffff; color: var(--peach-ink); }
+
+	.enc-card[data-card="meds"] { border-left: 3px solid var(--rose-brd); }
+	.enc-card[data-card="meds"] .enc-card__head { background: var(--rose-bg); }
+	.enc-card[data-card="meds"] .enc-card__count { background: #ffffff; color: var(--rose-ink); }
+
+	.enc-card[data-card="followups"] { border-left: 3px solid var(--sky-brd); }
+	.enc-card[data-card="followups"] .enc-card__head { background: var(--sky-bg); }
+	.enc-card[data-card="followups"] .enc-card__count { background: #ffffff; color: var(--sky-ink); }
+
+	.enc-card[data-card="redflags"] { border-left: 3px solid var(--blush-brd); }
+	.enc-card[data-card="redflags"] .enc-card__head { background: var(--blush-bg); }
+	.enc-card[data-card="redflags"] .enc-card__title { color: var(--blush-ink); }
+	.enc-card[data-card="redflags"] .enc-card__count { background: #ffffff; color: var(--blush-ink); }
+
+	.enc-card[data-card="doctor-notes"] { border-left: 3px solid var(--butter-brd); }
+	.enc-card[data-card="doctor-notes"] .enc-card__head { background: var(--butter-bg); }
+
+	.enc-card[data-card="transcript"] { border-left: 3px solid var(--slate-brd); }
+	.enc-card[data-card="transcript"] .enc-card__head { background: var(--slate-bg); }
+
+	/* ---- Chip lists ---- */
+	.enc-sug-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 7px;
+	}
+	.enc-sug-chip {
+		display: inline-flex;
+		align-items: center;
+		padding: 7px 12px;
+		background: #ffffff;
+		color: var(--ink-700);
+		border-radius: var(--radius-chip);
+		font-size: 13px;
+		font-weight: 500;
+		gap: 8px;
+		border: 1px solid var(--ink-200);
+		transition: transform .12s ease, box-shadow .15s ease, background .15s ease;
+	}
+	.enc-sug-chip:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 2px 6px -2px rgba(29, 35, 48, 0.14);
+	}
+
+	/* Per-section chip tint on the parent card */
+	.enc-card[data-card="tests"] .enc-sug-chip      { background: #ffffff; border-color: var(--peach-brd); }
+	.enc-card[data-card="meds"] .enc-sug-chip       { background: #ffffff; border-color: var(--rose-brd); }
+	.enc-card[data-card="followups"] .enc-sug-chip  { background: #ffffff; border-color: var(--sky-brd); }
+	.enc-card[data-card="assessment"] .enc-sug-chip { background: #ffffff; border-color: var(--lav-brd); }
+
+	.enc-sug-chip--added {
+		animation: encFade 0.4s cubic-bezier(.25,.8,.3,1);
+	}
+	@keyframes encFade {
+		from { opacity: 0; transform: translateY(-4px) scale(.95); }
+		to   { opacity: 1; transform: translateY(0) scale(1); }
+	}
+	.enc-sug-chip__x {
+		background: transparent;
+		border: none;
+		color: var(--ink-400);
+		opacity: 0.7;
+		cursor: pointer;
+		font-size: 15px;
+		line-height: 1;
+		padding: 0 2px;
+		border-radius: 4px;
+	}
+	.enc-sug-chip__x:hover { opacity: 1; color: var(--rose-ink); background: var(--rose-bg); }
+
+	/* Accept checkbox on selectable chips (tests/meds/followups) */
+	.enc-sug-chip__accept {
+		appearance: none;
+		-webkit-appearance: none;
+		width: 18px;
+		height: 18px;
+		border: 1.5px solid var(--ink-300);
+		border-radius: 5px;
+		margin: 0;
+		cursor: pointer;
+		flex-shrink: 0;
+		background-color: #ffffff;
+		background-image: none;
+		background-repeat: no-repeat;
+		background-position: center center;
+		background-size: 12px 12px;
+		transition: border-color .15s ease, background-color .15s ease;
+	}
+	.enc-sug-chip__accept:hover { border-color: var(--mint-ink); }
+	.enc-sug-chip__accept:checked {
+		background-color: var(--mint-ink);
+		border-color: var(--mint-ink);
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5 6.5 11.5 12.5 5'/%3E%3C/svg%3E");
+	}
+	.enc-sug-chip__accept:focus-visible {
+		outline: 2px solid var(--mint-ink);
+		outline-offset: 2px;
+	}
+	.enc-sug-chip.is-accepted {
+		background: var(--mint-bg);
+		color: var(--mint-ink);
+		border-color: var(--mint-brd);
+		font-weight: 600;
+	}
+
+	/* Doctor's Notes editor */
+	.enc-notes-card__body { padding: 14px 16px 16px; }
+	.enc-notes-textarea {
+		width: 100%;
+		min-height: 88px;
+		max-height: 280px;
+		padding: 12px 14px;
+		border: 1px solid var(--butter-brd);
+		border-radius: 10px;
+		font-family: var(--font-body);
+		font-size: 13.5px;
+		line-height: 1.55;
+		color: var(--ink-900);
+		background: #fffdf4;
+		resize: none;
+		box-sizing: border-box;
+		outline: none;
+		transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+	}
+	.enc-notes-textarea::placeholder { color: var(--ink-400); font-style: italic; }
+	.enc-notes-textarea:focus {
+		border-color: var(--butter-ink);
+		background: #ffffff;
+		box-shadow: 0 0 0 4px rgba(237, 215, 154, 0.35);
+	}
+
+	.enc-flag-list { margin: 0; padding-left: 20px; color: var(--blush-ink); }
+	.enc-flag-list li { margin-bottom: 5px; font-weight: 500; }
+
+	.enc-urgency-badge {
+		display: inline-block;
+		padding: 3px 11px;
+		border-radius: 999px;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.6px;
+		text-transform: uppercase;
+	}
+	.enc-urgency--low       { background: var(--mint-bg);  color: var(--mint-ink);  border: 1px solid var(--mint-brd); }
+	.enc-urgency--moderate  { background: var(--peach-bg); color: var(--peach-ink); border: 1px solid var(--peach-brd); }
+	.enc-urgency--high      { background: var(--rose-bg);  color: var(--rose-ink);  border: 1px solid var(--rose-brd); }
+	.enc-urgency--emergent  { background: var(--blush-ink); color: #ffffff;          border: 1px solid var(--blush-ink); }
+
+	/* --- Right sidebar: Cura AI assistant --- */
+	.enc-sidebar__head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 20px;
+		border-bottom: 1px solid rgba(29, 35, 48, 0.06);
+		background: linear-gradient(180deg, rgba(225, 240, 251, 0.55) 0%, transparent 100%);
+	}
+	.enc-sidebar__title {
+		font-family: var(--font-display);
+		font-size: 16px;
+		font-weight: 600;
+		letter-spacing: -0.005em;
+		color: var(--ink-900);
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.enc-sidebar__title svg { stroke: var(--sky-ink); }
+	.enc-sidebar__status {
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--ink-500);
+		padding: 3px 10px;
+		background: var(--cream-100);
+		border-radius: 999px;
+	}
+	.enc-sidebar__status.is-recording {
+		color: var(--rose-ink);
+		background: var(--rose-bg);
+		font-weight: 600;
+	}
+
+	.enc-sidebar__controls {
+		padding: 14px 20px;
+		border-bottom: 1px solid rgba(29, 35, 48, 0.06);
+		display: flex;
+		gap: 10px;
+	}
+	.enc-record-btn {
+		flex: 1;
+		height: 44px;
+		border-radius: 11px;
+		border: 1px solid var(--sky-brd);
+		background: linear-gradient(180deg, #5aa4d4 0%, #2f7aac 100%);
+		color: #ffffff;
+		font-family: var(--font-body);
+		font-size: 13.5px;
+		font-weight: 600;
+		letter-spacing: 0.1px;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 9px;
+		box-shadow: 0 4px 12px -4px rgba(47, 122, 172, 0.45);
+		transition: transform .12s ease, box-shadow .15s ease, background .2s ease;
+	}
+	.enc-record-btn:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 6px 16px -4px rgba(47, 122, 172, 0.55);
+	}
+	.enc-record-btn.is-recording {
+		background: linear-gradient(180deg, #d77390 0%, #a7355a 100%);
+		border-color: var(--rose-brd);
+		box-shadow: 0 4px 14px -4px rgba(167, 53, 90, 0.55);
+	}
+	.enc-record-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+	.enc-sidebar__controls #enc-swap-btn {
+		background: #ffffff;
+		border: 1px solid var(--ink-200);
+		color: var(--ink-700);
+		border-radius: 10px;
+		height: 44px;
+		font-family: var(--font-body);
+		font-weight: 500;
+		padding: 0 12px;
+	}
+	.enc-sidebar__controls #enc-swap-btn:hover { background: var(--cream-100); border-color: var(--sky-brd); color: var(--sky-ink); }
+
+	.enc-bubbles {
+		flex: 1;
+		overflow-y: auto;
+		padding: 18px 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	.enc-bubbles__empty {
+		margin: auto;
+		font-size: 13px;
+		color: var(--ink-400);
+		text-align: center;
+		padding: 28px 20px;
+		font-style: italic;
+		font-family: var(--font-display);
+	}
+	.enc-bubble {
+		max-width: 82%;
+		padding: 10px 14px;
+		border-radius: 16px;
+		font-size: 13.5px;
+		line-height: 1.45;
+		word-wrap: break-word;
+		animation: bubbleIn .25s cubic-bezier(.25,.8,.3,1);
+	}
+	@keyframes bubbleIn {
+		from { opacity: 0; transform: translateY(4px); }
+		to   { opacity: 1; transform: translateY(0); }
+	}
+	.enc-bubble__who {
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		opacity: 0.75;
+		margin-bottom: 3px;
+	}
+	.enc-bubble--doctor {
+		align-self: flex-start;
+		background: var(--lav-bg);
+		color: var(--lav-ink);
+		border: 1px solid var(--lav-brd);
+		border-bottom-left-radius: 5px;
+	}
+	.enc-bubble--patient {
+		align-self: flex-end;
+		background: var(--mint-bg);
+		color: var(--mint-ink);
+		border: 1px solid var(--mint-brd);
+		border-bottom-right-radius: 5px;
+	}
+	.enc-bubble--ai {
+		align-self: flex-start;
+		background: linear-gradient(135deg, var(--sky-bg) 0%, #f3ecff 100%);
+		color: var(--sky-ink);
+		border: 1px dashed var(--sky-brd);
+		font-style: italic;
+	}
+
+	.enc-sidebar__chips {
+		padding: 14px 20px;
+		border-top: 1px solid rgba(29, 35, 48, 0.06);
+		background: rgba(225, 240, 251, 0.3);
+		max-height: 170px;
+		overflow-y: auto;
+	}
+	.enc-sidebar__chips-title {
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.6px;
+		color: var(--sky-ink);
+		margin-bottom: 10px;
+	}
+	.enc-quick-chip {
+		display: inline-block;
+		padding: 5px 12px;
+		margin: 0 5px 5px 0;
+		background: #ffffff;
+		border: 1px solid var(--sky-brd);
+		border-radius: 999px;
+		font-size: 11.5px;
+		font-weight: 500;
+		color: var(--sky-ink);
+		cursor: pointer;
+		transition: transform .1s ease, background .15s ease;
+	}
+	.enc-quick-chip:hover {
+		background: var(--sky-bg);
+		transform: translateY(-1px);
+	}
+
+	.enc-chat {
+		display: flex;
+		gap: 10px;
+		padding: 12px 20px 16px;
+		border-top: 1px solid rgba(29, 35, 48, 0.06);
+		background: #ffffff;
+	}
+	.enc-chat input[type="text"] {
+		flex: 1;
+		min-width: 0;
+		height: 38px;
+		padding: 0 14px;
+		border: 1px solid var(--ink-200);
+		border-radius: 10px;
+		background: var(--cream-50);
+		font-family: var(--font-body);
+		font-size: 13px;
+		color: var(--ink-900);
+		outline: none;
+		transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+	}
+	.enc-chat input[type="text"]::placeholder { color: var(--ink-400); }
+	.enc-chat input[type="text"]:focus {
+		border-color: var(--sky-ink);
+		background: #ffffff;
+		box-shadow: 0 0 0 4px rgba(24, 82, 126, 0.1);
+	}
+	.enc-chat button {
+		flex-shrink: 0;
+		height: 38px;
+		padding: 0 16px;
+		border-radius: 10px;
+		background: linear-gradient(180deg, #5aa4d4 0%, #2f7aac 100%);
+		border: 1px solid #2f7aac;
+		color: #ffffff;
+		font-family: var(--font-body);
+		font-weight: 600;
+		font-size: 13px;
+		cursor: pointer;
+		transition: transform .1s ease;
+	}
+	.enc-chat button:hover { transform: translateY(-1px); }
+	.enc-chat button[disabled] { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+	.enc-error {
+		margin: 60px auto;
+		max-width: 520px;
+		padding: 28px;
+		background: #ffffff;
+		border: 1px solid var(--blush-brd);
+		border-radius: var(--radius-card);
+		text-align: center;
+		color: var(--blush-ink);
+		box-shadow: var(--shadow-lift);
+		font-family: var(--font-body);
+	}
+	.enc-error h4 { font-family: var(--font-display); font-weight: 600; }
+
+	/* Responsive: stack on narrow */
+	@media (max-width: 1024px) {
+		.enc-main { grid-template-columns: minmax(0, 1fr) 380px; }
+	}
+	@media (max-width: 960px) {
+		.enc-main { grid-template-columns: 1fr; }
+		.enc-right {
+			position: static;
+			height: auto;
+			border-left: none;
+			border-top: 1px solid rgba(29, 35, 48, 0.08);
+		}
+	}
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if error %}
+<div class="enc-error">
+	<h4 style="margin-top:0">Cannot open encounter</h4>
+	<p>{{ error }}</p>
+	<a class="btn btn-default btn-sm" href="/queue">Back to queue</a>
+</div>
+{% else %}
+<div class="enc-page">
+
+	<!-- TOPBAR -->
+	<header class="enc-topbar">
+		<div class="enc-topbar__patient">
+			<button type="button" class="enc-topbar__back" onclick="window.location.href='/queue'" title="Back to queue">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+			</button>
+			<div style="display:flex;flex-direction:column;min-width:0;">
+				<div class="enc-patient__name">{{ patient_label }}</div>
+				<div class="enc-patient__meta">
+					<span>{{ patient_id }}</span>
+					{% if patient_age %}<span class="dot">·</span><span>{{ patient_age }}</span>{% endif %}
+					{% if patient_sex %}<span class="dot">·</span><span>{{ patient_sex }}</span>{% endif %}
+					<span class="dot">·</span>
+					{% if is_new_patient %}
+						<span class="enc-chip enc-chip--new">NEW</span>
+					{% else %}
+						<span class="enc-chip enc-chip--old">RETURNING{% if last_visit %} · Last {{ last_visit }}{% endif %}</span>
+					{% endif %}
+					{% if is_walkin %}
+						<span class="enc-chip enc-chip--walkin">Walk-in</span>
+					{% else %}
+						<span class="enc-chip enc-chip--appt">Appointment</span>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+		<div class="enc-topbar__right">
+			<div class="enc-visit-label">
+				Encounter <strong>#{{ encounter_number }}</strong>
+			</div>
+			<div class="enc-timer" id="enc-timer">00:00</div>
+			<button type="button" class="btn btn-default btn-sm" id="enc-reset-btn" title="Reset timer and session">
+				Reset
+			</button>
+			<button type="button" class="btn btn-danger btn-sm" id="enc-end-btn">
+				End Encounter
+			</button>
+		</div>
+	</header>
+
+	<!-- MAIN LAYOUT -->
+	<div class="enc-main">
+
+		<!-- LEFT: cumulative cards -->
+		<section class="enc-left">
+			<p class="enc-cards-intro">
+				Live summary of this visit — updates automatically as the conversation progresses.
+				Items are <strong>added</strong>, never replaced.
+			</p>
+
+			<div class="enc-loader" id="enc-loader">
+				<div class="enc-loader__dots"><span></span><span></span><span></span></div>
+				<span id="enc-loader-text">Waiting for audio — press <strong>Start</strong> in the AI panel.</span>
+			</div>
+
+			{# --- Dynamic cards driven by AI Module Config. --- #}
+			{# Map well-known module_keys to the legacy DOM id suffix the existing JS/CSS expects. #}
+			{% set _legacy_id_alias = {
+				'possible_assessment': 'assessment',
+				'suggested_lab_tests': 'tests',
+				'suggested_medications': 'meds',
+				'recommended_follow_up_questions': 'followups',
+				'red_flags': 'redflags'
+			} %}
+			{% for m in (ai_modules or []) %}
+			{% set key = m.module_key %}
+			{% set suf = _legacy_id_alias.get(key, key) %}
+			{% set is_paragraph = (m.output_type == 'paragraph') %}
+			{% set is_bullet = (m.output_type == 'bullet_list') %}
+			{% set hidden = (key == 'red_flags') %}
+			<div class="enc-card{% if is_paragraph %} enc-card--paragraph{% endif %}"
+				data-card="{{ suf }}"
+				data-module-key="{{ key }}"
+				id="enc-card-{{ suf }}"
+				{% if hidden %}style="display:none;"{% endif %}>
+				<div class="enc-card__head">
+					<span class="enc-card__title"{% if m.card_color %} style="color: {{ m.card_color }};"{% endif %}>{{ m.display_title }}</span>
+					{% if key == 'summary' %}<span id="enc-urgency-slot"></span>{% endif %}
+					{% if not is_paragraph %}
+					<span class="enc-card__count" id="enc-{{ suf }}-count">0</span>
+					{% endif %}
+					<svg class="enc-card__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+				</div>
+				<div class="enc-card__body"{% if is_paragraph %} id="enc-{{ suf }}-body"{% endif %}>
+					{% if is_paragraph %}
+						{% if key == 'summary' and chief_complaint_hint %}
+						<p><strong>From intake:</strong> {{ chief_complaint_hint }}</p>
+						{% else %}
+						<p class="enc-card__empty">{{ m.empty_state_text or "—" }}</p>
+						{% endif %}
+					{% elif is_bullet %}
+						<ul class="enc-flag-list" id="enc-{{ suf }}-list"></ul>
+					{% else %}
+						<div class="enc-sug-list" id="enc-{{ suf }}-list">
+							<p class="enc-card__empty">{{ m.empty_state_text or "—" }}</p>
+						</div>
+					{% endif %}
+				</div>
+			</div>
+			{% endfor %}
+
+			{# Always keep red-flags card DOM present even when module is disabled, so JS code paths
+			   that reference it don't NPE. Hidden by default. #}
+			{% set _rendered_keys = (ai_modules or []) | map(attribute='module_key') | list %}
+			{% if 'red_flags' not in _rendered_keys %}
+			<div class="enc-card" data-card="redflags" id="enc-card-redflags" style="display:none;">
+				<ul class="enc-flag-list" id="enc-redflags-list"></ul>
+				<span id="enc-redflags-count" style="display:none;">0</span>
+			</div>
+			{% endif %}
+
+			<!-- Doctor's Notes -->
+			<div class="enc-card" data-card="doctor-notes" id="enc-card-doctor-notes">
+				<div class="enc-card__head">
+					<span class="enc-card__title">Doctor's Notes</span>
+					<svg class="enc-card__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+				</div>
+				<div class="enc-card__body enc-notes-card__body">
+					<textarea id="enc-doctor-notes"
+						class="enc-notes-textarea"
+						rows="3"
+						maxlength="5000"
+						placeholder="Your observations, plan, anything the AI missed…"></textarea>
+				</div>
+			</div>
+
+			<!-- Transcript -->
+			<div class="enc-card is-collapsed" data-card="transcript">
+				<div class="enc-card__head">
+					<span class="enc-card__title">Full Transcript</span>
+					<svg class="enc-card__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+				</div>
+				<div class="enc-card__body">
+					<p class="enc-card__empty" id="enc-transcript-body">Recording will populate the transcript.</p>
+				</div>
+			</div>
+		</section>
+
+		<!-- RIGHT: AI sidebar -->
+		<aside class="enc-right">
+			<div class="enc-sidebar__head">
+				<div class="enc-sidebar__title">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+					Cura Assistant
+				</div>
+				<div class="enc-sidebar__status" id="enc-status">Ready</div>
+			</div>
+
+			<div class="enc-sidebar__controls">
+				<button type="button" class="enc-record-btn" id="enc-record-btn">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+					<span id="enc-record-label">Start Recording</span>
+				</button>
+				<button type="button" class="btn btn-default btn-sm" id="enc-swap-btn" title="If doctor and patient bubbles are reversed, click to swap.">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+					Swap
+				</button>
+			</div>
+
+			<div class="enc-bubbles" id="enc-bubbles">
+				<div class="enc-bubbles__empty" id="enc-bubbles-empty">
+					No transcript yet. Press Start Recording and speak — the conversation will appear here as bubbles.
+				</div>
+			</div>
+
+			<div class="enc-sidebar__chips">
+				<div class="enc-sidebar__chips-title">Ask Cura</div>
+				<span class="enc-quick-chip" data-prompt="Summarize this visit so far">Summarize so far</span>
+				<span class="enc-quick-chip" data-prompt="Any drug interactions to watch for?">Drug interactions?</span>
+				<span class="enc-quick-chip" data-prompt="What else should I ask?">What else should I ask?</span>
+				<span class="enc-quick-chip" data-prompt="Suggest a differential diagnosis">Differential diagnosis</span>
+			</div>
+
+			<form class="enc-chat" id="enc-chat-form" autocomplete="off">
+				<input type="text" class="form-control input-sm" id="enc-chat-input" placeholder="Ask Cura a question…" maxlength="500" />
+				<button type="submit" class="btn btn-primary btn-sm" id="enc-chat-send">Send</button>
+			</form>
+		</aside>
+	</div>
+</div>
+
+<script>
+(function () {
+	const VISIT_ID        = {{ visit_id | tojson }};
+	const APPOINTMENT_ID  = {{ appointment.name | tojson }};
+	const PATIENT_ID      = {{ patient_id | tojson }};
+	const EXISTING_ENC    = {{ (existing_encounter or "") | tojson }};
+	const CSRF            = (window.frappe && frappe.csrf_token) || "";
+	window.__AI_MODULES__ = {{ (ai_modules or []) | tojson }};
+	const AI_MODULES      = window.__AI_MODULES__ || [];
+
+	// Legacy module_key → old DOM id suffix. Lets old hardcoded IDs keep
+	// working (e.g. enc-assessment-list). New modules use their key verbatim.
+	const LEGACY_ID_ALIAS = {
+		possible_assessment: "assessment",
+		suggested_lab_tests: "tests",
+		suggested_medications: "meds",
+		recommended_follow_up_questions: "followups",
+		red_flags: "redflags",
+	};
+	function _idSuffix(key) { return LEGACY_ID_ALIAS[key] || key; }
+
+	// -- Timer -----------------------------------------------------------------
+	const timerEl = document.getElementById("enc-timer");
+	let timerStart = null;
+	let timerInterval = null;
+	function startTimer(reset) {
+		if (reset || !timerStart) timerStart = Date.now();
+		timerEl.classList.add("enc-timer--live");
+		if (timerInterval) clearInterval(timerInterval);
+		timerInterval = setInterval(updateTimer, 500);
+		updateTimer();
+	}
+	function stopTimer() {
+		if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+		timerEl.classList.remove("enc-timer--live");
+	}
+	function resetTimer() {
+		stopTimer();
+		timerStart = null;
+		timerEl.textContent = "00:00";
+	}
+	function updateTimer() {
+		if (!timerStart) return;
+		const s = Math.floor((Date.now() - timerStart) / 1000);
+		const mm = String(Math.floor(s / 60)).padStart(2, "0");
+		const ss = String(s % 60).padStart(2, "0");
+		timerEl.textContent = `${mm}:${ss}`;
+	}
+
+	// -- Bubbles ---------------------------------------------------------------
+	const bubblesEl = document.getElementById("enc-bubbles");
+	const bubblesEmpty = document.getElementById("enc-bubbles-empty");
+	const BUBBLE_DOM_CAP = 120; // keep DOM small to avoid long-session freezes
+	function addBubble(role, text) {
+		text = (text || "").trim();
+		if (!text) return;
+		bubblesEmpty.style.display = "none";
+		const el = document.createElement("div");
+		el.className = "enc-bubble enc-bubble--" + role;
+		const who = role === "doctor" ? "Doctor" : role === "patient" ? "Patient" : "Cura";
+		const whoDiv = document.createElement("div");
+		whoDiv.className = "enc-bubble__who";
+		whoDiv.textContent = who;
+		const txtDiv = document.createElement("div");
+		txtDiv.className = "enc-bubble__text";
+		txtDiv.textContent = text;
+		el.appendChild(whoDiv);
+		el.appendChild(txtDiv);
+		bubblesEl.appendChild(el);
+		// Trim old bubbles so a long session doesn't grow the DOM unbounded.
+		while (bubblesEl.children.length - 1 > BUBBLE_DOM_CAP) {
+			const first = bubblesEl.firstElementChild;
+			if (first && first !== bubblesEmpty) bubblesEl.removeChild(first);
+			else break;
+		}
+		// rAF so layout settles once per frame even if many bubbles are added in a burst.
+		requestAnimationFrame(() => { bubblesEl.scrollTop = bubblesEl.scrollHeight; });
+	}
+
+	// -- Cumulative chip lists -------------------------------------------------
+	// These maintain Set-by-text dedup so new chunks ADD chips, never remove.
+	// Stores are keyed by DOM id suffix (legacy alias applied). Rebuilt from
+	// AI_MODULES so admins can add/remove modules without editing JS.
+	const chipStores = {};
+	AI_MODULES.forEach(m => {
+		if (m.output_type === "paragraph") return;
+		chipStores[_idSuffix(m.module_key)] = new Set();
+	});
+	// Always keep a red-flags store so legacy code paths don't NPE when the
+	// module is disabled but a red_flags payload still arrives.
+	if (!chipStores.redflags) chipStores.redflags = new Set();
+
+	function mergeChips(key, items, opts) {
+		if (!Array.isArray(items)) return;
+		const suf = _idSuffix(key);
+		const listEl = document.getElementById("enc-" + suf + "-list");
+		const countEl = document.getElementById("enc-" + suf + "-count");
+		if (!listEl) return;
+		if (!chipStores[suf]) chipStores[suf] = new Set();
+		const store = chipStores[suf];
+		const isBullet = listEl.tagName === "UL";
+		items.forEach(raw => {
+			const text = (raw || "").trim();
+			if (!text) return;
+			const norm = text.toLowerCase();
+			if (store.has(norm)) return;
+			store.add(norm);
+			if (store.size === 1) listEl.innerHTML = ""; // drop "—"
+			if (isBullet) {
+				const li = document.createElement("li");
+				li.textContent = text;
+				listEl.appendChild(li);
+				return;
+			}
+			const chip = document.createElement("span");
+			chip.className = "enc-sug-chip enc-sug-chip--added";
+			// Only tests / meds / followups are doctor-selectable. Other
+			// chip lists (e.g. Possible Assessment) stay display-only.
+			const selectable = (suf === "tests" || suf === "meds" || suf === "followups");
+			let inner = "";
+			if (selectable) {
+				inner += '<input type="checkbox" class="enc-sug-chip__accept" title="Accept" />';
+			}
+			inner += '<span class="enc-sug-chip__text"></span><button type="button" class="enc-sug-chip__x" title="Remove">×</button>';
+			chip.innerHTML = inner;
+			chip.querySelector(".enc-sug-chip__text").textContent = text;
+			if (selectable) {
+				const cb = chip.querySelector(".enc-sug-chip__accept");
+				cb.addEventListener("click", (e) => { e.stopPropagation(); });
+				cb.addEventListener("change", () => {
+					chip.classList.toggle("is-accepted", !!cb.checked);
+				});
+			}
+			chip.querySelector(".enc-sug-chip__x").addEventListener("click", () => {
+				store.delete(norm);
+				chip.remove();
+				if (countEl) countEl.textContent = store.size;
+				if (store.size === 0) listEl.innerHTML = '<p class="enc-card__empty">—</p>';
+			});
+			listEl.appendChild(chip);
+			setTimeout(() => chip.classList.remove("enc-sug-chip--added"), 400);
+		});
+		if (countEl) countEl.textContent = store.size;
+		if (suf === "redflags" && store.size > 0) {
+			const card = document.getElementById("enc-card-redflags");
+			if (card) card.style.display = "";
+		}
+	}
+
+	function updateParagraph(moduleKey, text) {
+		const suf = _idSuffix(moduleKey);
+		// New dynamic layout: `enc-<suf>-body`. Legacy id: `enc-summary-body`.
+		const el = document.getElementById("enc-" + suf + "-body")
+			|| document.getElementById("enc-" + moduleKey + "-body");
+		if (!el) return;
+		const safe = (text == null ? "" : String(text)).trim();
+		if (!safe) return;
+		el.classList.remove("enc-card__empty");
+		el.innerHTML = '<p style="margin:0">' + esc(safe) + '</p>';
+	}
+
+	// -- Summary / urgency -----------------------------------------------------
+	// Apply the full recommendation payload to all configured modules.
+	function applyRecommendation(rec) {
+		if (!rec) return;
+		const slot = document.getElementById("enc-urgency-slot");
+		if (slot && rec.urgency) {
+			const cls = "enc-urgency-badge enc-urgency--" + rec.urgency;
+			slot.innerHTML = '<span class="' + cls + '"></span>';
+			slot.querySelector("span").textContent = (rec.urgency || "").toUpperCase();
+		}
+
+		// Paragraph modules: set innerHTML directly. Chip/bullet modules: merge.
+		AI_MODULES.forEach(m => {
+			const key = m.module_key;
+			if (!(key in rec)) return;
+			if (m.output_type === "paragraph") {
+				updateParagraph(key, rec[key]);
+			} else {
+				mergeChips(key, rec[key] || []);
+			}
+		});
+
+		// Backward-compat: the old `summary` card showed chief_complaint as a bold
+		// preamble when both were present. Preserve that when both modules exist.
+		if (rec.chief_complaint && rec.summary) {
+			const sumEl = document.getElementById("enc-summary-body");
+			if (sumEl) {
+				sumEl.classList.remove("enc-card__empty");
+				sumEl.innerHTML =
+					'<p style="margin:0 0 6px"><strong>' + esc(rec.chief_complaint) + '</strong></p>' +
+					'<p style="margin:0">' + esc(rec.summary) + '</p>';
+			}
+		}
+	}
+	// Keep the old name around so existing callers continue to work.
+	const updateSummary = applyRecommendation;
+
+	function updateTranscript(text) {
+		const el = document.getElementById("enc-transcript-body");
+		if (!text) return;
+		el.classList.remove("enc-card__empty");
+		el.textContent = text;
+	}
+
+	function hideLoader() {
+		document.getElementById("enc-loader").classList.add("is-hidden");
+	}
+
+	function esc(s) {
+		return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
+			"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+		}[c]));
+	}
+
+	// -- Card collapse ---------------------------------------------------------
+	document.querySelectorAll(".enc-card__head").forEach(head => {
+		head.addEventListener("click", () => {
+			head.closest(".enc-card").classList.toggle("is-collapsed");
+		});
+	});
+
+	// -- Recorder --------------------------------------------------------------
+	const recordBtn = document.getElementById("enc-record-btn");
+	const recordLbl = document.getElementById("enc-record-label");
+	const statusEl  = document.getElementById("enc-status");
+
+	let mediaStream   = null;
+	let mediaRecorder = null;
+	let chunkInterval = null;
+	let seqNum        = 0;
+	let isRecording   = false;
+	let inFlight      = 0;           // concurrent uploads
+	const UPLOAD_CONCURRENCY_CAP = 3; // drop additional chunks to avoid pile-up
+	let droppedChunks = 0;
+
+	// VAD state
+	let audioCtx      = null;
+	let analyser      = null;
+	let vadSource     = null;
+	let vadRmsPeak    = 0; // peak RMS seen since last chunk boundary
+	let vadRafId      = null;
+	const VAD_RMS_THRESHOLD = 0.015; // empirical; skip chunk if peak below this
+
+	function setStatus(text, recording) {
+		statusEl.textContent = text;
+		statusEl.classList.toggle("is-recording", !!recording);
+	}
+
+	function tearDownRecorder(rec) {
+		if (!rec) return;
+		try { rec.ondataavailable = null; rec.onstop = null; rec.onerror = null; } catch (_) {}
+	}
+
+	function createRecorder(stream, onChunk) {
+		const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+			? "audio/webm;codecs=opus"
+			: "audio/webm";
+		const rec = new MediaRecorder(stream, { mimeType });
+		const parts = [];
+		rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) parts.push(e.data); };
+		rec.onstop = () => {
+			const blob = parts.length > 0 ? new Blob(parts, { type: mimeType }) : null;
+			tearDownRecorder(rec);
+			if (blob && onChunk) onChunk(blob);
+		};
+		rec.onerror = (e) => { console.warn("MediaRecorder error:", e && e.error); };
+		return rec;
+	}
+
+	function startVad(stream) {
+		try {
+			const AC = window.AudioContext || window.webkitAudioContext;
+			if (!AC) return; // VAD is best-effort
+			audioCtx = new AC();
+			vadSource = audioCtx.createMediaStreamSource(stream);
+			analyser = audioCtx.createAnalyser();
+			analyser.fftSize = 512;
+			vadSource.connect(analyser);
+			const buf = new Float32Array(analyser.fftSize);
+			vadRmsPeak = 0;
+			const tick = () => {
+				if (!analyser) return;
+				try { analyser.getFloatTimeDomainData(buf); } catch (_) { return; }
+				let sum = 0;
+				for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+				const rms = Math.sqrt(sum / buf.length);
+				if (rms > vadRmsPeak) vadRmsPeak = rms;
+				vadRafId = requestAnimationFrame(tick);
+			};
+			vadRafId = requestAnimationFrame(tick);
+		} catch (e) {
+			console.warn("VAD init failed — proceeding without it:", e);
+		}
+	}
+
+	function stopVad() {
+		if (vadRafId) { cancelAnimationFrame(vadRafId); vadRafId = null; }
+		try { if (vadSource) vadSource.disconnect(); } catch (_) {}
+		try { if (analyser) analyser.disconnect(); } catch (_) {}
+		vadSource = null; analyser = null;
+		if (audioCtx) {
+			try { audioCtx.close(); } catch (_) {}
+			audioCtx = null;
+		}
+		vadRmsPeak = 0;
+	}
+
+	async function startRecording() {
+		try {
+			setStatus("Requesting mic…");
+			mediaStream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					echoCancellation: true,
+					noiseSuppression: true,
+					autoGainControl: true,
+					channelCount: 1,
+					sampleRate: 16000,
+				},
+			});
+			seqNum = 0;
+			isRecording = true;
+			startVad(mediaStream);
+			mediaRecorder = createRecorder(mediaStream, handleChunkBlob);
+			mediaRecorder.start();
+			setStatus("Recording", true);
+			recordBtn.classList.add("is-recording");
+			recordLbl.textContent = "Stop";
+			startTimer(false);
+			chunkInterval = setInterval(() => {
+				if (!isRecording || !mediaStream) return;
+				try {
+					if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+					mediaRecorder = createRecorder(mediaStream, handleChunkBlob);
+					mediaRecorder.start();
+				} catch (e) {
+					console.warn("Recorder cycle failed:", e);
+				}
+			}, 10000);
+		} catch (err) {
+			console.error(err);
+			setStatus("Mic error: " + (err && err.message ? err.message : err));
+			// Ensure we don't leak the mic track or pretend we're recording.
+			isRecording = false;
+			recordBtn.classList.remove("is-recording");
+			recordLbl.textContent = "Start Recording";
+			if (chunkInterval) { clearInterval(chunkInterval); chunkInterval = null; }
+			stopVad();
+			if (mediaStream) {
+				mediaStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+				mediaStream = null;
+			}
+		}
+	}
+
+	function stopRecording() {
+		isRecording = false;
+		recordBtn.classList.remove("is-recording");
+		recordLbl.textContent = "Start Recording";
+		if (chunkInterval) { clearInterval(chunkInterval); chunkInterval = null; }
+		try {
+			if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+		} catch (_) {}
+		if (mediaStream) {
+			mediaStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+			mediaStream = null;
+		}
+		stopVad();
+		stopTimer();
+		if (inFlight === 0) setStatus("Stopped");
+	}
+
+	function handleChunkBlob(blob) {
+		// Read and reset VAD peak for the window that just ended.
+		const peak = vadRmsPeak; vadRmsPeak = 0;
+		// If the window was essentially silent, skip the network round-trip.
+		if (isRecording && peak < VAD_RMS_THRESHOLD) {
+			// Still bump seqNum so the server-side timeline stays monotonic in logs.
+			seqNum++;
+			return;
+		}
+		if (inFlight >= UPLOAD_CONCURRENCY_CAP) {
+			droppedChunks++;
+			setStatus("Busy — dropped " + droppedChunks + " chunks", isRecording);
+			return;
+		}
+		uploadChunk(blob);
+	}
+
+	async function uploadChunk(blob) {
+		inFlight++;
+		seqNum++;
+		const seq = seqNum;
+		setStatus("Processing #" + seq);
+		const ctrl = new AbortController();
+		const timeoutId = setTimeout(() => ctrl.abort(), 45000); // hard cap per chunk
+		try {
+			const form = new FormData();
+			form.append("visit_id", VISIT_ID);
+			form.append("sequence_number", String(seq));
+			form.append("language_hint", "");
+			form.append("audio_chunk", blob, "chunk-" + seq + ".webm");
+			const res = await fetch("/api/method/remedisys.api.medical_agent.process_audio_chunk", {
+				method: "POST",
+				body: form,
+				credentials: "include",
+				headers: { "X-Frappe-CSRF-Token": CSRF },
+				signal: ctrl.signal,
+			});
+			const json = await res.json();
+			const p = json.message || json;
+			if (!p || !p.ok) throw new Error((p && (p._server_messages || p.exc)) || "Failed");
+
+			// Diarized utterances (one bubble per speaker turn).
+			const utts = Array.isArray(p.chunk_utterances) ? p.chunk_utterances : [];
+			if (utts.length) {
+				for (const u of utts) {
+					if (!u || !u.text) continue;
+					addBubble(u.speaker === "doctor" ? "doctor" : "patient", u.text);
+				}
+			} else if (p.chunk_transcript_en) {
+				// Fallback path (GCP disabled): single patient bubble.
+				addBubble("patient", p.chunk_transcript_en);
+			}
+
+			updateTranscript(p.full_transcript_en);
+			applyRecommendation(p.recommendation || {});
+			hideLoader();
+
+			setStatus(isRecording ? "Recording (" + seq + ")" : "Idle · " + seq + " chunks", isRecording);
+		} catch (err) {
+			if (err && err.name === "AbortError") {
+				console.warn("Chunk #" + seq + " timed out");
+				setStatus("Timeout #" + seq, isRecording);
+			} else {
+				console.error(err);
+				setStatus("Error: " + (err && err.message ? err.message : "unknown"), isRecording);
+			}
+		} finally {
+			clearTimeout(timeoutId);
+			inFlight--;
+		}
+	}
+
+	recordBtn.addEventListener("click", () => {
+		if (isRecording) stopRecording();
+		else startRecording();
+	});
+
+	// -- Swap speakers ---------------------------------------------------------
+	let speakerSwap = 0;
+	const swapBtn = document.getElementById("enc-swap-btn");
+	swapBtn.addEventListener("click", async () => {
+		const next = speakerSwap ? 0 : 1;
+		swapBtn.disabled = true;
+		try {
+			const body = new URLSearchParams();
+			body.set("visit_id", VISIT_ID);
+			body.set("swap", String(next));
+			const res = await fetch("/api/method/remedisys.api.medical_agent.set_speaker_swap", {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					"X-Frappe-CSRF-Token": CSRF,
+				},
+				body: body.toString(),
+			});
+			const json = await res.json();
+			const p = json.message || json;
+			if (!p || !p.ok) throw new Error("Swap failed");
+			speakerSwap = p.speaker_swap ? 1 : 0;
+			// Flip each bubble's CSS class locally so the user sees immediate feedback.
+			bubblesEl.querySelectorAll(".enc-bubble").forEach(el => {
+				if (el.classList.contains("enc-bubble--doctor")) {
+					el.classList.remove("enc-bubble--doctor");
+					el.classList.add("enc-bubble--patient");
+					const who = el.querySelector(".enc-bubble__who");
+					if (who) who.textContent = "Patient";
+				} else if (el.classList.contains("enc-bubble--patient")) {
+					el.classList.remove("enc-bubble--patient");
+					el.classList.add("enc-bubble--doctor");
+					const who = el.querySelector(".enc-bubble__who");
+					if (who) who.textContent = "Doctor";
+				}
+			});
+		} catch (e) {
+			console.warn(e);
+			alert("Couldn't swap speakers right now.");
+		} finally {
+			swapBtn.disabled = false;
+		}
+	});
+
+	// -- Reset / End -----------------------------------------------------------
+	document.getElementById("enc-reset-btn").addEventListener("click", async () => {
+		if (!confirm("Reset timer and clear AI analysis for this visit?")) return;
+		stopRecording();
+		resetTimer();
+		try {
+			await fetch("/api/method/remedisys.api.medical_agent.clear_visit_state", {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					"X-Frappe-CSRF-Token": CSRF,
+				},
+				body: "visit_id=" + encodeURIComponent(VISIT_ID),
+			});
+		} catch (e) { console.warn(e); }
+		// Wipe local UI state
+		Object.keys(chipStores).forEach(suf => {
+			chipStores[suf].clear();
+			const listEl = document.getElementById("enc-" + suf + "-list");
+			if (listEl) {
+				if (listEl.tagName === "UL") listEl.innerHTML = "";
+				else listEl.innerHTML = '<p class="enc-card__empty">—</p>';
+			}
+			const countEl = document.getElementById("enc-" + suf + "-count");
+			if (countEl) countEl.textContent = "0";
+		});
+		// Reset paragraph module bodies to their empty-state placeholder.
+		AI_MODULES.forEach(m => {
+			if (m.output_type !== "paragraph") return;
+			const suf = _idSuffix(m.module_key);
+			const el = document.getElementById("enc-" + suf + "-body");
+			if (!el) return;
+			el.classList.add("enc-card__empty");
+			el.innerHTML = '<p class="enc-card__empty">' + esc(m.empty_state_text || "—") + '</p>';
+		});
+		const rfCard = document.getElementById("enc-card-redflags");
+		if (rfCard) rfCard.style.display = "none";
+		bubblesEl.innerHTML = "";
+		bubblesEl.appendChild(bubblesEmpty);
+		bubblesEmpty.style.display = "";
+		document.getElementById("enc-transcript-body").textContent = "Recording will populate the transcript.";
+		document.getElementById("enc-transcript-body").classList.add("enc-card__empty");
+		const urgSlot = document.getElementById("enc-urgency-slot");
+		if (urgSlot) urgSlot.innerHTML = "";
+		document.getElementById("enc-loader").classList.remove("is-hidden");
+		droppedChunks = 0;
+		speakerSwap = 0;
+		setStatus("Reset");
+	});
+
+	// Helper: collect the chip texts whose accept checkbox is checked for a given
+	// DOM id suffix (tests / meds / followups).
+	function collectAccepted(suf) {
+		const listEl = document.getElementById("enc-" + suf + "-list");
+		if (!listEl) return [];
+		const out = [];
+		listEl.querySelectorAll(".enc-sug-chip").forEach(chip => {
+			const cb = chip.querySelector(".enc-sug-chip__accept");
+			if (cb && cb.checked) {
+				const t = chip.querySelector(".enc-sug-chip__text");
+				if (t && t.textContent.trim()) out.push(t.textContent.trim());
+			}
+		});
+		return out;
+	}
+
+	// Doctor's Notes — autosize textarea so it grows with content.
+	const notesEl = document.getElementById("enc-doctor-notes");
+	if (notesEl) {
+		const autosize = () => {
+			notesEl.style.height = "auto";
+			notesEl.style.height = Math.min(notesEl.scrollHeight, 260) + "px";
+		};
+		notesEl.addEventListener("input", autosize);
+		autosize();
+	}
+
+	document.getElementById("enc-end-btn").addEventListener("click", async () => {
+		if (!confirm("End this encounter? This saves the AI analysis and marks the appointment as checked out.")) return;
+		stopRecording();
+		const btn = document.getElementById("enc-end-btn");
+		btn.disabled = true;
+		btn.textContent = "Ending…";
+		try {
+			const body = new URLSearchParams();
+			body.set("appointment", APPOINTMENT_ID);
+			body.set("visit_id", VISIT_ID);
+			// Doctor-selected items + notes. Serialize as JSON arrays so the
+			// backend can distinguish "not sent" from "explicitly empty".
+			const selTests = collectAccepted("tests");
+			const selMeds = collectAccepted("meds");
+			const selFollowups = collectAccepted("followups");
+			if (selTests.length) body.set("selected_tests", JSON.stringify(selTests));
+			if (selMeds.length) body.set("selected_meds", JSON.stringify(selMeds));
+			if (selFollowups.length) body.set("selected_followups", JSON.stringify(selFollowups));
+			const notesVal = notesEl ? notesEl.value.trim() : "";
+			if (notesVal) body.set("doctor_notes", notesVal);
+			const res = await fetch("/api/method/remedisys.api.medical_agent.end_encounter", {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					"X-Frappe-CSRF-Token": CSRF,
+				},
+				body: body.toString(),
+			});
+			const json = await res.json();
+			const p = json.message || json;
+			if (!p || !p.ok) throw new Error((p && (p.exc || p._server_messages)) || "Failed to end encounter");
+			// Jump to the wrap-up page: doctor can review the summary and
+			// generate an invoice / prescription from there. Fall back to
+			// /queue if the backend didn't return the encounter name.
+			if (p.encounter_name) {
+				window.location.href = "/encounter-summary?e=" + encodeURIComponent(p.encounter_name);
+			} else {
+				window.location.href = "/queue";
+			}
+		} catch (err) {
+			console.error(err);
+			alert("Could not end encounter: " + err.message);
+			btn.disabled = false;
+			btn.textContent = "End Encounter";
+		}
+	});
+
+	// -- Ask Cura (shared: chips + chat input) ---------------------------------
+	// Only one outstanding chat request at a time; clicking again aborts the previous.
+	let chatAbort = null;
+	let chatPending = false;
+
+	async function askCura(prompt) {
+		prompt = (prompt || "").trim();
+		if (!prompt) return;
+		// Echo the doctor's message immediately so the UI never feels stuck.
+		addBubble("doctor", prompt);
+		if (chatAbort) { try { chatAbort.abort(); } catch (_) {} }
+		chatAbort = new AbortController();
+		chatPending = true;
+		updateChatInputEnabled();
+		const timeoutId = setTimeout(() => { try { chatAbort.abort(); } catch (_) {} }, 30000);
+		try {
+			const body = JSON.stringify({ visit_id: VISIT_ID, message: prompt });
+			const res = await fetch("/api/method/remedisys.api.medical_agent.chat_with_ai", {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+					"X-Frappe-CSRF-Token": CSRF,
+				},
+				body,
+				signal: chatAbort.signal,
+			});
+			const json = await res.json();
+			const p = json.message || json;
+			if (p && p.reply) addBubble("ai", p.reply);
+			else addBubble("ai", "(no reply)");
+		} catch (err) {
+			if (err && err.name === "AbortError") return; // silently swallow aborts
+			console.warn(err);
+			addBubble("ai", "Couldn't reach the AI right now.");
+		} finally {
+			clearTimeout(timeoutId);
+			chatPending = false;
+			updateChatInputEnabled();
+		}
+	}
+
+	document.querySelectorAll(".enc-quick-chip").forEach(chip => {
+		chip.addEventListener("click", () => askCura(chip.dataset.prompt));
+	});
+
+	// -- Chat input ------------------------------------------------------------
+	const chatForm = document.getElementById("enc-chat-form");
+	const chatInput = document.getElementById("enc-chat-input");
+	const chatSend = document.getElementById("enc-chat-send");
+	function updateChatInputEnabled() {
+		chatSend.disabled = chatPending || !chatInput.value.trim();
+		chatSend.textContent = chatPending ? "…" : "Send";
+	}
+	chatInput.addEventListener("input", updateChatInputEnabled);
+	chatForm.addEventListener("submit", (e) => {
+		e.preventDefault();
+		const msg = chatInput.value;
+		chatInput.value = "";
+		updateChatInputEnabled();
+		// Fire-and-forget so the input doesn't block on network.
+		askCura(msg);
+	});
+	updateChatInputEnabled();
+
+	// -- Hydrate from server state --------------------------------------------
+	// If the doctor reloads mid-encounter, rebuild bubbles / cards from cache.
+	(async function hydrate() {
+		try {
+			const res = await fetch(
+				"/api/method/remedisys.api.medical_agent.get_visit_state?visit_id=" + encodeURIComponent(VISIT_ID),
+				{ credentials: "include", headers: { "X-Frappe-CSRF-Token": CSRF } }
+			);
+			if (!res.ok) return;
+			const json = await res.json();
+			const p = json.message || json;
+			if (!p) return;
+			speakerSwap = p.speaker_swap ? 1 : 0;
+
+			const utts = Array.isArray(p.utterances) ? p.utterances : [];
+			if (utts.length) {
+				for (const u of utts) {
+					if (!u || !u.text) continue;
+					addBubble(u.speaker === "doctor" ? "doctor" : "patient", u.text);
+				}
+			}
+			if (p.full_transcript_en) updateTranscript(p.full_transcript_en);
+			const rec = p.latest_recommendation || {};
+			if (rec && Object.keys(rec).length) {
+				applyRecommendation(rec);
+				hideLoader();
+			}
+		} catch (e) {
+			// Non-fatal — hydration is best-effort.
+			console.warn("hydrate failed", e);
+		}
+	})();
+
+	// -- Teardown on page unload so mic + requests don't linger ---------------
+	window.addEventListener("beforeunload", () => {
+		try { if (isRecording) stopRecording(); } catch (_) {}
+		try { if (chatAbort) chatAbort.abort(); } catch (_) {}
+	});
+})();
+</script>
+{% endif %}
+{% endblock %}

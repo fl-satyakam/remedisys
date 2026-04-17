@@ -7,3 +7,4 @@ site_config.json
 common_site_config.json
 *.pem
 *.key
+.DS_Store

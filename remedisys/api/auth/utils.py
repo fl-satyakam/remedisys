@@ -15,7 +15,7 @@ def build_response(status: str, message: str, status_code: int = 200, **data) ->
 
 
 def success_response(message: str, status_code: int = 200, **data) -> dict:
-    return build_response("sucess", message, status_code=status_code, **data)
+    return build_response("success", message, status_code=status_code, **data)
 
 
 def error_response(message: str, status_code: int = 400, **data) -> dict:
